@@ -22,15 +22,21 @@ serve(async (req) => {
 
     const { location, mode = 'driving' } = await req.json()
     
-    if (!location) {
-      console.error('No location provided')
-      throw new Error('Location is required')
+    if (!location || typeof location !== 'string' || location.trim() === '') {
+      console.error('Invalid or empty location provided:', location)
+      return new Response(
+        JSON.stringify({ error: 'Valid location is required' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     console.log('Fetching place details for location:', location)
 
     // First get place ID
-    const placeSearchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(location)}&inputtype=textquery&fields=place_id,photos&key=${GOOGLE_API_KEY}`
+    const placeSearchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(location.trim())}&inputtype=textquery&fields=place_id,photos&key=${GOOGLE_API_KEY}`
     
     const placeResponse = await fetch(placeSearchUrl)
     if (!placeResponse.ok) {
@@ -42,7 +48,14 @@ serve(async (req) => {
     console.log('Place search response:', placeData)
 
     if (!placeData.candidates || placeData.candidates.length === 0) {
-      throw new Error('Location not found')
+      console.error('No place found for location:', location)
+      return new Response(
+        JSON.stringify({ error: 'Location not found in Google Places' }),
+        { 
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     const placeId = placeData.candidates[0].place_id
@@ -52,6 +65,9 @@ serve(async (req) => {
     if (placeData.candidates[0].photos && placeData.candidates[0].photos.length > 0) {
       const photoReference = placeData.candidates[0].photos[0].photo_reference
       photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${GOOGLE_API_KEY}`
+    } else {
+      // Use a default placeholder image if no photo is available
+      photoUrl = 'https://via.placeholder.com/400x300?text=No+Image+Available'
     }
 
     // Get place details including coordinates
@@ -65,11 +81,15 @@ serve(async (req) => {
       throw new Error('Failed to get location coordinates')
     }
 
+    // Mock travel time for now (you can implement actual travel time calculation later)
+    const travelTime = '30 mins'
+
     return new Response(
       JSON.stringify({
         placeId,
         photoUrl,
-        coordinates: detailsData.result.geometry.location
+        coordinates: detailsData.result.geometry.location,
+        travelTime
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -84,7 +104,7 @@ serve(async (req) => {
         error: error.message || 'An error occurred while fetching place details'
       }),
       {
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )

@@ -19,16 +19,34 @@ const DayPlanner = () => {
         body: { planText }
       });
 
-      if (parseError) throw parseError;
+      if (parseError) {
+        console.error('Parse error:', parseError);
+        throw new Error('Failed to parse plan text');
+      }
+
+      if (!parsedData?.events || !Array.isArray(parsedData.events)) {
+        throw new Error('Invalid response from parse-plan function');
+      }
 
       // For each parsed event, get place details and save to database
       const processedEvents = await Promise.all(parsedData.events.map(async (event: any) => {
+        if (!event.location) {
+          console.warn('Event missing location:', event);
+          throw new Error(`Missing location for event: ${event.activity}`);
+        }
+
         // Get place details including photo and travel time
         const { data: placeData, error: placeError } = await supabase.functions.invoke('place-details', {
-          body: { location: event.location, mode: 'driving' }
+          body: { 
+            location: event.location.trim(),
+            mode: 'driving'
+          }
         });
 
-        if (placeError) throw placeError;
+        if (placeError) {
+          console.error('Place details error:', placeError);
+          throw new Error(`Failed to get details for location: ${event.location}`);
+        }
 
         // Save event to database
         const { data: savedEvent, error: saveError } = await supabase
@@ -38,12 +56,15 @@ const DayPlanner = () => {
             location: event.location,
             start_time: event.startTime,
             end_time: event.endTime,
-            image_url: placeData.photoUrl,
+            image_url: placeData.photoUrl || '/placeholder.svg',
           }])
           .select()
           .single();
 
-        if (saveError) throw saveError;
+        if (saveError) {
+          console.error('Save error:', saveError);
+          throw new Error('Failed to save event to database');
+        }
 
         return savedEvent;
       }));
@@ -63,7 +84,7 @@ const DayPlanner = () => {
       console.error('Error processing plan:', error);
       toast({
         title: "Error creating plan",
-        description: "There was a problem creating your plan. Please try again.",
+        description: error.message || "There was a problem creating your plan. Please try again.",
         variant: "destructive",
       });
     } finally {
