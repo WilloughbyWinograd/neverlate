@@ -41,13 +41,15 @@ serve(async (req) => {
         max_tokens: 1024,
         messages: [{
           role: 'user',
-          content: `Parse this daily plan into structured events with exact times. For each event, extract:
+          content: `Parse this daily plan into structured events. Return ONLY a JSON array of objects with these exact fields:
           - activity (string)
           - location (string)
           - startTime (ISO string)
           - endTime (ISO string, estimate 1 hour duration if not specified)
           
-          Format as JSON array of objects. Plan: ${planText}`
+          Plan text: ${planText}
+          
+          Important: Return ONLY the JSON array, no other text or explanation.`
         }]
       })
     })
@@ -64,10 +66,29 @@ serve(async (req) => {
       throw new Error('Invalid response from Claude API')
     }
 
-    const parsedEvents = JSON.parse(data.content[0].text)
-    console.log('Parsed events:', parsedEvents)
+    // Extract JSON from Claude's response and parse it
+    const jsonMatch = data.content[0].text.match(/\[.*\]/s)
+    if (!jsonMatch) {
+      console.error('No JSON array found in Claude response:', data.content[0].text)
+      throw new Error('Failed to extract events from Claude response')
+    }
 
-    return new Response(JSON.stringify({ events: parsedEvents }), {
+    const events = JSON.parse(jsonMatch[0])
+    console.log('Parsed events:', events)
+
+    if (!Array.isArray(events)) {
+      throw new Error('Invalid events format - expected array')
+    }
+
+    // Validate each event has required fields
+    events.forEach((event, index) => {
+      if (!event.activity || !event.location || !event.startTime || !event.endTime) {
+        console.error('Invalid event format:', event)
+        throw new Error(`Event at index ${index} is missing required fields`)
+      }
+    })
+
+    return new Response(JSON.stringify({ events }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200
     })
