@@ -9,12 +9,25 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
+    if (!CLAUDE_API_KEY) {
+      console.error('Claude API key not found')
+      throw new Error('API key configuration missing')
+    }
+
     const { planText } = await req.json()
+    
+    if (!planText) {
+      console.error('No plan text provided')
+      throw new Error('Plan text is required')
+    }
+
+    console.log('Sending request to Claude API with plan:', planText)
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -28,21 +41,47 @@ serve(async (req) => {
         max_tokens: 1024,
         messages: [{
           role: 'user',
-          content: `Parse this daily plan into structured events. For each event, extract the activity, location, and time. Format as JSON array. Plan: ${planText}`
+          content: `Parse this daily plan into structured events with exact times. For each event, extract:
+          - activity (string)
+          - location (string)
+          - startTime (ISO string)
+          - endTime (ISO string, estimate 1 hour duration if not specified)
+          
+          Format as JSON array of objects. Plan: ${planText}`
         }]
       })
     })
 
+    if (!response.ok) {
+      console.error('Claude API error:', await response.text())
+      throw new Error('Failed to parse plan with Claude API')
+    }
+
     const data = await response.json()
+    console.log('Claude API response:', data)
+
+    if (!data.content || !data.content[0] || !data.content[0].text) {
+      throw new Error('Invalid response from Claude API')
+    }
+
     const parsedEvents = JSON.parse(data.content[0].text)
+    console.log('Parsed events:', parsedEvents)
 
     return new Response(JSON.stringify({ events: parsedEvents }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
     })
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    console.error('Error in parse-plan function:', error)
+    return new Response(
+      JSON.stringify({
+        error: error.message || 'An error occurred while processing your plan'
+      }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
 })
