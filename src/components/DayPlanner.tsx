@@ -40,7 +40,7 @@ const DayPlanner = () => {
         const timezone = placeData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         console.log(`Processing event "${event.activity}" with timezone: ${timezone}`);
 
-        // Parse the local time string into a Date object
+        // Parse the time string and ensure it's set to today's date
         let startTime;
         try {
           startTime = parseTimeString(event.startTime);

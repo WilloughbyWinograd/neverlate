@@ -2,10 +2,27 @@ import { format, parse, set } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 export const parseTimeString = (timeString: string): Date => {
-  // Remove any whitespace and convert to lowercase
+  // First try to parse as ISO string (coming from Claude)
+  try {
+    const date = new Date(timeString);
+    if (!isNaN(date.getTime())) {
+      // Set to today's date if it's a historical date
+      if (date.getFullYear() < new Date().getFullYear()) {
+        return set(new Date(), {
+          hours: date.getHours(),
+          minutes: date.getMinutes(),
+          seconds: 0,
+          milliseconds: 0
+        });
+      }
+      return date;
+    }
+  } catch (error) {
+    console.log('Not an ISO date, trying human format:', timeString);
+  }
+
+  // If not ISO, try human-readable format
   const cleanTimeString = timeString.toLowerCase().trim();
-  
-  // Match patterns like "3pm", "3:00pm", "15:00", "3:00 pm", "3 pm"
   const timeMatch = cleanTimeString.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
   
   if (!timeMatch) {
@@ -15,16 +32,6 @@ export const parseTimeString = (timeString: string): Date => {
   let [, hours, minutes = '0', period] = timeMatch;
   let parsedHours = parseInt(hours, 10);
   const parsedMinutes = parseInt(minutes, 10);
-
-  // Handle 24-hour format
-  if (!period && parsedHours >= 0 && parsedHours < 24) {
-    return set(new Date(), {
-      hours: parsedHours,
-      minutes: parsedMinutes,
-      seconds: 0,
-      milliseconds: 0
-    });
-  }
 
   // Handle 12-hour format with am/pm
   if (period) {
@@ -39,6 +46,7 @@ export const parseTimeString = (timeString: string): Date => {
     throw new Error(`Invalid time values: hours=${parsedHours}, minutes=${parsedMinutes}`);
   }
 
+  // Always set to today's date
   return set(new Date(), {
     hours: parsedHours,
     minutes: parsedMinutes,
@@ -65,7 +73,12 @@ export const calculateEndTime = (startTime: Date, endTimeString?: string, timezo
   }
 
   try {
-    return parseTimeString(endTimeString);
+    const endTime = parseTimeString(endTimeString);
+    // If end time is earlier than start time, assume it's for the next day
+    if (endTime < startTime) {
+      endTime.setDate(endTime.getDate() + 1);
+    }
+    return endTime;
   } catch (error) {
     console.error('Error parsing end time:', error);
     const endTime = new Date(startTime);
@@ -81,10 +94,7 @@ export const convertToTimezone = (date: Date, timezone: string, toUTC: boolean =
   }
 
   try {
-    // Create a date string in the target timezone
     const dateInZone = formatInTimeZone(date, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX");
-    
-    // Parse it back to a Date object
     return new Date(dateInZone);
   } catch (error) {
     console.error('Error converting timezone:', error);
