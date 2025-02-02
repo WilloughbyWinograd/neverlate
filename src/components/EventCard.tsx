@@ -1,8 +1,4 @@
-import { useState, useEffect } from "react";
-import { MapPin, Clock, Car, Train, Navigation } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { MapPin, Clock } from "lucide-react";
 
 interface EventCardProps {
   title: string;
@@ -13,41 +9,7 @@ interface EventCardProps {
 }
 
 const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardProps) => {
-  const [showTransit, setShowTransit] = useState(false);
-  const [travelTime, setTravelTime] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const updateTravelTime = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke('place-details', {
-          body: { 
-            location, 
-            mode: showTransit ? 'transit' : 'driving' 
-          }
-        });
-
-        if (error) throw error;
-        setTravelTime(data.travelTime);
-      } catch (error) {
-        console.error('Error fetching travel time:', error);
-        setTravelTime('Unable to calculate travel time');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    updateTravelTime();
-  }, [location, showTransit]);
-
   const fallbackImage = '/placeholder.svg';
-
-  const handleGetDirections = () => {
-    const modeParam = showTransit ? 'transit' : 'driving';
-    const encodedAddress = encodeURIComponent(location);
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=${modeParam}`, '_blank');
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4 animate-fade-in">
@@ -76,28 +38,6 @@ const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardP
               {new Date(startTime).toLocaleTimeString()} - {new Date(endTime).toLocaleTimeString()}
             </span>
           </div>
-          <div className="flex items-center justify-between mt-3 pt-3 border-t">
-            <div className="flex items-center gap-2 text-sm">
-              {showTransit ? <Train className="w-4 h-4" /> : <Car className="w-4 h-4" />}
-              <span>{isLoading ? 'Calculating...' : travelTime}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">Transit</span>
-              <Switch
-                checked={showTransit}
-                onCheckedChange={setShowTransit}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-          <Button 
-            onClick={handleGetDirections}
-            className="w-full mt-2"
-            variant="outline"
-          >
-            <Navigation className="w-4 h-4" />
-            Get Directions
-          </Button>
         </div>
       </div>
     </div>
