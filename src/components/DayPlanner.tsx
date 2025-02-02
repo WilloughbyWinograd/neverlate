@@ -4,7 +4,7 @@ import PlanInput from "./PlanInput";
 import EventList from "./EventList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { parseTimeString, convertToTimezone, calculateEndTime } from "@/utils/timeUtils";
+import { parseTimeString, convertToTimezone, calculateEndTime, formatEventTime } from "@/utils/timeUtils";
 
 const DayPlanner = () => {
   const [events, setEvents] = useState([]);
@@ -29,27 +29,39 @@ const DayPlanner = () => {
           throw new Error(`Missing location for event: ${event.activity}`);
         }
 
+        // Get place details including timezone for the event location
         const { data: placeData, error: placeError } = await supabase.functions.invoke('place-details', {
           body: { location: event.location.trim() }
         });
 
         if (placeError) throw new Error(`Failed to get details for location: ${event.location}`);
 
+        // Use the location's timezone, fallback to local timezone if not available
         const timezone = placeData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-        
+        console.log(`Processing event "${event.activity}" with timezone: ${timezone}`);
+
+        // Parse the local time string into a Date object
         let startTime;
         try {
           startTime = parseTimeString(event.startTime);
+          console.log(`Parsed start time for "${event.activity}":`, startTime);
         } catch (error) {
           console.error('Error parsing start time:', error);
           throw new Error(`Invalid time format: ${event.startTime}`);
         }
-        
-        const endTime = calculateEndTime(startTime, event.endTime);
 
-        // Convert to UTC for storage
+        // Calculate end time in the same timezone
+        const endTime = calculateEndTime(startTime, event.endTime, timezone);
+        console.log(`Calculated end time for "${event.activity}":`, endTime);
+
+        // Convert times to UTC for storage
         const utcStartTime = convertToTimezone(startTime, timezone, true);
         const utcEndTime = convertToTimezone(endTime, timezone, true);
+
+        console.log(`Converted times to UTC for "${event.activity}":`, {
+          start: utcStartTime,
+          end: utcEndTime
+        });
 
         const { data: savedEvent, error: saveError } = await supabase
           .from('events')

@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { format, parseISO } from "date-fns";
+import { formatEventTime } from "@/utils/timeUtils";
 
 interface EventCardProps {
   title: string;
@@ -10,10 +10,12 @@ interface EventCardProps {
 }
 
 const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardProps) => {
-  const formatEventTime = (timeString: string) => {
+  const formatTime = (timeString: string) => {
     try {
-      const date = parseISO(timeString);
-      return format(date, "h:mm a"); // This will format time like "9:00 AM"
+      const date = new Date(timeString);
+      // Use the browser's timezone as fallback
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return formatEventTime(date, timezone);
     } catch (error) {
       console.error("Error formatting time:", error, timeString);
       return timeString;
@@ -33,7 +35,7 @@ const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardP
           <h3 className="text-2xl font-semibold mb-2">{title}</h3>
           <p className="text-base opacity-90 mb-1">{location}</p>
           <p className="text-sm opacity-90">
-            {formatEventTime(startTime)} - {formatEventTime(endTime)}
+            {formatTime(startTime)} - {formatTime(endTime)}
           </p>
         </div>
       </div>
