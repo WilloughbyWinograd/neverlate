@@ -27,51 +27,73 @@ const StatusHeader = ({ isLate: initialIsLate, events = [] }: StatusHeaderProps)
 
   useEffect(() => {
     const fetchTransitTimes = async () => {
-      if (!events.length) return;
+      if (!events.length) {
+        console.log("No events to fetch transit times for");
+        return;
+      }
       
       const times: {[key: string]: number} = {};
       let prevLocation = '';
 
       for (const event of events) {
         if (!event.location?.trim()) {
-          console.log("Skipping transit time fetch for empty location");
+          console.log("Skipping transit time fetch for empty location:", event);
           continue;
         }
 
         try {
+          // Enhanced validation for locations
+          const currentLocation = event.location.trim();
+          
+          if (currentLocation === "Loading location...") {
+            console.log("Location still loading, skipping transit time fetch");
+            continue;
+          }
+
           // Only make the API call if we have both origin and destination
           if (!prevLocation?.trim()) {
-            console.log("First event, getting location details only");
-            const { data } = await supabase.functions.invoke('place-details', {
+            console.log("First event, getting location details only for:", currentLocation);
+            const { data, error } = await supabase.functions.invoke('place-details', {
               body: { 
-                location: event.location.trim(),
+                location: currentLocation,
                 mode: 'driving'
               }
             });
             
+            if (error) {
+              console.error('Error fetching place details:', error);
+              continue;
+            }
+            
             if (data?.durationInMinutes) {
-              times[event.location] = data.durationInMinutes;
+              times[currentLocation] = data.durationInMinutes;
             }
           } else {
+            const prevLocationTrimmed = prevLocation.trim();
             console.log("Fetching transit time between locations:", {
-              origin: prevLocation.trim(),
-              destination: event.location.trim()
+              origin: prevLocationTrimmed,
+              destination: currentLocation
             });
             
-            const { data } = await supabase.functions.invoke('place-details', {
+            const { data, error } = await supabase.functions.invoke('place-details', {
               body: { 
-                origin: prevLocation.trim(),
-                destination: event.location.trim(),
+                origin: prevLocationTrimmed,
+                destination: currentLocation,
                 mode: 'driving'
               }
             });
             
+            if (error) {
+              console.error('Error fetching transit time:', error);
+              continue;
+            }
+            
             if (data?.durationInMinutes) {
-              times[event.location] = data.durationInMinutes;
+              times[currentLocation] = data.durationInMinutes;
             }
           }
           
-          prevLocation = event.location;
+          prevLocation = currentLocation;
         } catch (error) {
           console.error('Error fetching transit time:', error);
         }

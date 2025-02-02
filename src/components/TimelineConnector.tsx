@@ -22,11 +22,19 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
       setTravelTime(null);
 
       try {
-        // Validate locations before making the API call
-        if (!fromLocation?.trim() || !toLocation?.trim() || 
-            fromLocation === "Loading location..." || 
-            toLocation === "Loading location...") {
-          console.log("Invalid or loading locations, skipping API call");
+        // Enhanced validation for locations
+        if (!fromLocation?.trim() || !toLocation?.trim()) {
+          console.log("Missing location data:", { fromLocation, toLocation });
+          setTravelTime('Location data incomplete');
+          setIsLoading(false);
+          return;
+        }
+
+        // Additional validation for loading states
+        if (fromLocation === "Loading location..." || toLocation === "Loading location...") {
+          console.log("Locations still loading");
+          setTravelTime('Loading locations...');
+          setIsLoading(false);
           return;
         }
 
@@ -46,12 +54,14 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
 
         if (error) {
           console.error('Supabase function error:', error);
-          throw error;
+          setTravelTime('Error calculating travel time');
+          return;
         }
 
         if (!data?.travelTime) {
           console.error('No travel time in response:', data);
-          throw new Error('No travel time available');
+          setTravelTime('Unable to calculate');
+          return;
         }
 
         setTravelTime(data.travelTime);
@@ -67,7 +77,10 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
   }, [fromLocation, toLocation, showTransit]);
 
   const handleGetDirections = () => {
-    if (!fromLocation?.trim() || !toLocation?.trim()) return;
+    if (!fromLocation?.trim() || !toLocation?.trim()) {
+      console.log("Cannot get directions - missing location data");
+      return;
+    }
     
     const modeParam = showTransit ? 'transit' : 'driving';
     const encodedDestination = encodeURIComponent(toLocation.trim());
