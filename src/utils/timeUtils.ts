@@ -2,27 +2,34 @@ import { format, parse, set } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 export const parseTimeString = (timeString: string): Date => {
-  // First try to parse as ISO string (coming from Claude)
+  // First try to parse as ISO string
   try {
     const date = new Date(timeString);
     if (!isNaN(date.getTime())) {
-      // Set to today's date if it's a historical date
-      if (date.getFullYear() < new Date().getFullYear()) {
-        return set(new Date(), {
-          hours: date.getHours(),
-          minutes: date.getMinutes(),
-          seconds: 0,
-          milliseconds: 0
-        });
-      }
-      return date;
+      return set(new Date(), {
+        hours: date.getHours(),
+        minutes: date.getMinutes(),
+        seconds: 0,
+        milliseconds: 0
+      });
     }
   } catch (error) {
     console.log('Not an ISO date, trying human format:', timeString);
   }
 
-  // If not ISO, try human-readable format (e.g., "11am", "2pm", "7pm")
+  // Parse human-readable format (e.g., "11am", "2pm", "7pm")
   const cleanTimeString = timeString.toLowerCase().trim();
+  
+  // Handle special case for "sunset" by mapping it to 7pm
+  if (cleanTimeString === 'sunset') {
+    return set(new Date(), {
+      hours: 19,
+      minutes: 0,
+      seconds: 0,
+      milliseconds: 0
+    });
+  }
+
   const timeMatch = cleanTimeString.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
   
   if (!timeMatch) {
@@ -48,16 +55,12 @@ export const parseTimeString = (timeString: string): Date => {
   }
 
   // Set to today's date with the parsed time
-  const today = new Date();
-  return new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-    parsedHours,
-    parsedMinutes,
-    0,
-    0
-  );
+  return set(new Date(), {
+    hours: parsedHours,
+    minutes: parsedMinutes,
+    seconds: 0,
+    milliseconds: 0
+  });
 };
 
 export const formatEventTime = (date: Date, timezone: string): string => {
@@ -99,7 +102,7 @@ export const convertToTimezone = (date: Date, timezone: string, toUTC: boolean =
   }
 
   try {
-    // Format the date in the target timezone, which gives us the correct local time
+    // Format the date in the target timezone
     const dateString = formatInTimeZone(date, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX");
     // Parse the formatted string back to a Date object
     return new Date(dateString);
