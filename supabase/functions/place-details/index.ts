@@ -34,7 +34,7 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     const encodedDestination = encodeURIComponent(destination)
     const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodedOrigin}&destination=${encodedDestination}&mode=${mode}&key=${apiKey}`
     
-    console.log('Calling Google Directions API...')
+    console.log('Calling Google Directions API with URL pattern:', directionsUrl.replace(apiKey, 'REDACTED'))
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
@@ -70,7 +70,7 @@ const getPlaceDetails = async (location: string, apiKey: string): Promise<PlaceD
   try {
     const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(location)}&key=${apiKey}`
     
-    console.log('Calling Google Places API...')
+    console.log('Calling Google Places API with URL pattern:', placeUrl.replace(apiKey, 'REDACTED'))
     const placeRes = await fetch(placeUrl)
     const placeData = await placeRes.json()
 
@@ -130,6 +130,7 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string):
   
   try {
     const geocodingUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
+    console.log('Calling Google Geocoding API with URL pattern:', geocodingUrl.replace(apiKey, 'REDACTED'))
     const geocodingRes = await fetch(geocodingUrl)
     const geocodingData = await geocodingRes.json()
 
@@ -163,6 +164,8 @@ serve(async (req) => {
       console.error('Google API key not found')
       throw new Error('Google API key not found')
     }
+
+    console.log('Retrieved Google API key:', apiKey.substring(0, 5) + '...')
 
     const requestData = await req.json()
     console.log('Received request with data:', requestData)
