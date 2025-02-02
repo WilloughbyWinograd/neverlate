@@ -38,11 +38,19 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
-    console.log('Google Directions API response:', directionsData)
+    console.log('Google Directions API response:', {
+      status: directionsData.status,
+      error_message: directionsData.error_message,
+      available_travel_modes: directionsData.available_travel_modes
+    })
 
     if (directionsData.status !== 'OK') {
-      console.error('Directions API error:', directionsData.status, directionsData.error_message)
-      throw new Error(`Google Directions API error: ${directionsData.status}${directionsData.error_message ? ': ' + directionsData.error_message : ''}`)
+      const errorDetails = directionsData.error_message || 
+        `Status: ${directionsData.status}. This usually means the API key needs to be:
+        1. Enabled for the Directions API
+        2. Have proper billing set up
+        3. Have appropriate API restrictions set`
+      throw new Error(`Google Directions API error: ${errorDetails}`)
     }
 
     const route = directionsData.routes?.[0]
@@ -134,13 +142,18 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string):
     const geocodingRes = await fetch(geocodingUrl)
     const geocodingData = await geocodingRes.json()
 
-    console.log('Geocoding API response:', geocodingData)
+    console.log('Geocoding API response:', {
+      status: geocodingData.status,
+      error_message: geocodingData.error_message
+    })
 
     if (geocodingData.status !== 'OK') {
-      console.error('Geocoding API error:', geocodingData.status, geocodingData.error_message)
-      return {
-        formattedAddress: `${lat},${lng}`
-      }
+      const errorDetails = geocodingData.error_message || 
+        `Status: ${geocodingData.status}. This usually means the API key needs to be:
+        1. Enabled for the Geocoding API
+        2. Have proper billing set up
+        3. Have appropriate API restrictions set`
+      throw new Error(`Geocoding API error: ${errorDetails}`)
     }
 
     return {
@@ -158,7 +171,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get API key from environment variable
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
     if (!apiKey) {
       console.error('Google API key not found')
@@ -172,7 +184,6 @@ serve(async (req) => {
 
     const { origin, destination, mode, lat, lng, location } = requestData
 
-    // Handle reverse geocoding request
     if (typeof lat === 'number' && typeof lng === 'number') {
       const result = await handleReverseGeocoding(lat, lng, apiKey)
       return new Response(JSON.stringify(result), { 
@@ -180,7 +191,6 @@ serve(async (req) => {
       })
     }
 
-    // Handle single location request
     if (location) {
       const result = await getPlaceDetails(location, apiKey)
       return new Response(JSON.stringify(result), { 
@@ -188,7 +198,6 @@ serve(async (req) => {
       })
     }
 
-    // Handle directions request
     if (origin && destination) {
       const result = await handlePlaceDetails(origin, destination, mode || 'driving', apiKey)
       return new Response(JSON.stringify(result), { 
