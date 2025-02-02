@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Clock, MapPin } from "lucide-react";
-import { parseISO, isAfter, addMinutes } from "date-fns";
+import { parseISO, isAfter, addMinutes, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StatusHeaderProps {
@@ -31,7 +31,7 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            const { data } = await supabase.functions.invoke('place-details', {
+            const { data, error } = await supabase.functions.invoke('place-details', {
               body: { 
                 lat: position.coords.latitude,
                 lng: position.coords.longitude,
@@ -39,17 +39,22 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
               }
             });
             
-            if (data?.formattedAddress) {
+            if (error) throw error;
+            
+            if (data?.formattedAddress && data.formattedAddress !== "Current Location") {
               setFormattedLocation(data.formattedAddress);
+            } else {
+              // Fallback to coordinates if no address is returned
+              setFormattedLocation(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
             }
           } catch (error) {
             console.error("Error getting location:", error);
-            setFormattedLocation("Unable to get location");
+            setFormattedLocation(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
           }
         },
         (error) => {
           console.error("Geolocation error:", error);
-          setFormattedLocation("Location unavailable");
+          setFormattedLocation("Location access denied");
         }
       );
     }
@@ -100,14 +105,14 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
   }, [currentTime, events, transitTimes]);
 
   return (
-    <div className="p-4 w-full max-w-3xl mx-auto mb-6 rounded-lg animate-fade-in" 
+    <div className="p-4 w-full max-w-3xl mx-auto mb-6 rounded-lg animate-fade-in bg-white" 
          style={{ backgroundColor: isLate ? "rgb(var(--destructive) / 0.1)" : "rgb(var(--planner) / 0.2)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
             <span className="font-medium">
-              {currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {format(currentTime, "h:mm a")}
             </span>
           </div>
           <div className="flex items-center gap-2">

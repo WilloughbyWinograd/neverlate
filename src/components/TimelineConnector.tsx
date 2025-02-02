@@ -28,7 +28,7 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
         });
 
         if (error) throw error;
-        setTravelTime(data.travelTime || 'Calculating...');
+        setTravelTime(data?.travelTime || 'Calculating...');
       } catch (error) {
         console.error('Error fetching travel time:', error);
         setTravelTime('Unable to calculate travel time');
@@ -51,14 +51,14 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
   };
 
   return (
-    <div className="relative flex items-center my-4 pl-6 w-full max-w-3xl mx-auto">
+    <div className="relative flex items-center my-4 w-full max-w-3xl mx-auto">
       <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-planner-300" />
-      <div className="relative -left-6 w-full bg-white border border-planner-300 rounded-lg p-4 shadow-sm">
+      <div className="w-full bg-white border border-planner-300 rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2 min-w-0">
             {showTransit ? <Train className="w-4 h-4 flex-shrink-0" /> : <Car className="w-4 h-4 flex-shrink-0" />}
             <span className="font-medium whitespace-nowrap">
-              {isFirst ? 'From Home' : 'Next Stop'}
+              {isFirst ? 'From Current Location' : 'Next Stop'}
             </span>
             <span className="text-gray-400 mx-2">•</span>
             <span className="truncate">{isLoading ? 'Calculating...' : travelTime}</span>
