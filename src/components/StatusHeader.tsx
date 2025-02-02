@@ -1,57 +1,73 @@
 import { useEffect, useState } from "react";
 import { Clock, MapPin } from "lucide-react";
+import { parseISO, isAfter, addMinutes } from "date-fns";
 
 interface StatusHeaderProps {
   isLate: boolean;
+  events: Array<{
+    start_time: string;
+    location: string;
+  }>;
+  currentLocation: string;
 }
 
-const StatusHeader = ({ isLate }: StatusHeaderProps) => {
+const StatusHeader = ({ isLate: _, events, currentLocation }: StatusHeaderProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentLocation, setCurrentLocation] = useState<string>("");
-  const [locationLoading, setLocationLoading] = useState(true);
+  const [isLate, setIsLate] = useState(false);
+  const [transitTimes, setTransitTimes] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
 
-    // Get current location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const response = await fetch(
-              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.coords.latitude},${position.coords.longitude}&key=${process.env.GOOGLE_API_KEY}&result_type=locality`
-            );
-            const data = await response.json();
-            if (data.results && data.results[0]) {
-              setCurrentLocation(data.results[0].formatted_address);
-            } else {
-              setCurrentLocation("Location not found");
-            }
-          } catch (error) {
-            console.error("Error getting location:", error);
-            setCurrentLocation("Unable to get location");
-          } finally {
-            setLocationLoading(false);
-          }
-        },
-        (error) => {
-          console.error("Error getting position:", error);
-          setCurrentLocation("Location access denied");
-          setLocationLoading(false);
-        }
-      );
-    } else {
-      setCurrentLocation("Geolocation not supported");
-      setLocationLoading(false);
-    }
-
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const fetchTransitTimes = async () => {
+      const times: {[key: string]: number} = {};
+      let prevLocation = currentLocation;
+
+      for (const event of events) {
+        try {
+          const { data } = await supabase.functions.invoke('place-details', {
+            body: { 
+              location: event.location,
+              mode: 'driving',
+              origin: prevLocation
+            }
+          });
+          
+          if (data?.durationInMinutes) {
+            times[event.location] = data.durationInMinutes;
+          }
+          
+          prevLocation = event.location;
+        } catch (error) {
+          console.error('Error fetching transit time:', error);
+        }
+      }
+      
+      setTransitTimes(times);
+    };
+
+    fetchTransitTimes();
+  }, [events, currentLocation]);
+
+  useEffect(() => {
+    if (events.length > 0) {
+      const nextEvent = events[0];
+      const startTime = parseISO(nextEvent.start_time);
+      const transitTime = transitTimes[nextEvent.location] || 0;
+      const shouldLeaveBy = addMinutes(startTime, -transitTime);
+      
+      setIsLate(isAfter(currentTime, shouldLeaveBy));
+    }
+  }, [currentTime, events, transitTimes]);
+
   return (
-    <div className={`p-4 ${isLate ? "bg-destructive/10" : "bg-planner-200"} rounded-lg mb-6 animate-fade-in`}>
+    <div className={`p-4 ${isLate ? "bg-destructive/10" : "bg-planner-200"} rounded-lg mb-6 animate-fade-in max-w-3xl mx-auto`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -63,7 +79,7 @@ const StatusHeader = ({ isLate }: StatusHeaderProps) => {
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5" />
             <span className="font-medium text-sm">
-              {locationLoading ? "Getting location..." : currentLocation}
+              {currentLocation}
             </span>
           </div>
         </div>

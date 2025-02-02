@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 interface EventCardProps {
   title: string;
@@ -11,12 +11,12 @@ interface EventCardProps {
 
 const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardProps) => {
   const formatTime = (timeString: string) => {
-    const date = new Date(timeString);
+    const date = parseISO(timeString);
     return format(date, "h:mm a");
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto overflow-hidden">
+    <Card className="w-full max-w-3xl mx-auto overflow-hidden">
       <div className="relative">
         <img
           src={imageUrl || "/placeholder.svg"}
