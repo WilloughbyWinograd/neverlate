@@ -9,6 +9,7 @@ const DayPlanner = () => {
   const [events, setEvents] = useState([]);
   const [isLate, setIsLate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState("Current Location");
   const { toast } = useToast();
 
   const handlePlanSubmit = async (planText: string) => {
@@ -93,9 +94,13 @@ const DayPlanner = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-planner-100 to-white p-4 sm:p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-6 text-center">Daily Plan</h1>
-        <StatusHeader isLate={isLate} />
+        <StatusHeader 
+          isLate={isLate} 
+          events={events} 
+          currentLocation={currentLocation}
+        />
         <PlanInput onPlanSubmit={handlePlanSubmit} isLoading={isLoading} />
         <EventList events={events} />
       </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Clock, MapPin } from "lucide-react";
 import { parseISO, isAfter, addMinutes } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StatusHeaderProps {
   isLate: boolean;
@@ -11,9 +12,9 @@ interface StatusHeaderProps {
   currentLocation: string;
 }
 
-const StatusHeader = ({ isLate: _, events, currentLocation }: StatusHeaderProps) => {
+const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: StatusHeaderProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [isLate, setIsLate] = useState(false);
+  const [isLate, setIsLate] = useState(initialIsLate);
   const [transitTimes, setTransitTimes] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
@@ -26,6 +27,8 @@ const StatusHeader = ({ isLate: _, events, currentLocation }: StatusHeaderProps)
 
   useEffect(() => {
     const fetchTransitTimes = async () => {
+      if (!events.length) return;
+      
       const times: {[key: string]: number} = {};
       let prevLocation = currentLocation;
 
@@ -56,7 +59,7 @@ const StatusHeader = ({ isLate: _, events, currentLocation }: StatusHeaderProps)
   }, [events, currentLocation]);
 
   useEffect(() => {
-    if (events.length > 0) {
+    if (events && events.length > 0) {
       const nextEvent = events[0];
       const startTime = parseISO(nextEvent.start_time);
       const transitTime = transitTimes[nextEvent.location] || 0;
@@ -67,7 +70,8 @@ const StatusHeader = ({ isLate: _, events, currentLocation }: StatusHeaderProps)
   }, [currentTime, events, transitTimes]);
 
   return (
-    <div className={`p-4 ${isLate ? "bg-destructive/10" : "bg-planner-200"} rounded-lg mb-6 animate-fade-in max-w-3xl mx-auto`}>
+    <div className="p-4 max-w-3xl mx-auto mb-6 rounded-lg animate-fade-in" 
+         style={{ backgroundColor: isLate ? "rgb(var(--destructive) / 0.1)" : "rgb(var(--planner) / 0.2)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
