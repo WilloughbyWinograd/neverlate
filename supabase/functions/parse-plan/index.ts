@@ -33,8 +33,8 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
         'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
         model: 'claude-3-opus-20240229',
@@ -55,7 +55,8 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      console.error('Claude API error:', await response.text())
+      const errorText = await response.text()
+      console.error('Claude API error:', errorText)
       throw new Error('Failed to parse plan with Claude API')
     }
 
