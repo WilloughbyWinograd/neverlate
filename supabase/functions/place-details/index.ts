@@ -26,6 +26,16 @@ serve(async (req) => {
       throw new Error('Invalid request parameters: requires either location or lat/lng coordinates')
     }
 
+    // Test the API key first with a simple request
+    const testUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${apiKey}`
+    const testRes = await fetch(testUrl)
+    const testData = await testRes.json()
+
+    if (testData.status === 'REQUEST_DENIED') {
+      console.error('Google API authorization error:', testData.error_message)
+      throw new Error(`Google API authorization error: ${testData.error_message}`)
+    }
+
     // Handle reverse geocoding if lat/lng provided
     if (lat && lng) {
       console.log('Reverse geocoding for coordinates:', { lat, lng })
@@ -36,8 +46,8 @@ serve(async (req) => {
       console.log('Geocode response:', geocodeData)
 
       if (geocodeData.status === 'REQUEST_DENIED') {
-        console.error('Google API error:', geocodeData.error_message || 'Request denied')
-        throw new Error(`Google API error: ${geocodeData.error_message || 'Request denied'}`)
+        console.error('Google API error:', geocodeData.error_message)
+        throw new Error(`Google API error: ${geocodeData.error_message}`)
       }
 
       if (!geocodeData.results || !geocodeData.results[0]) {
@@ -63,8 +73,8 @@ serve(async (req) => {
       console.log('Place API response:', placeData)
 
       if (placeData.status === 'REQUEST_DENIED') {
-        console.error('Google API error:', placeData.error_message || 'Request denied')
-        throw new Error(`Google API error: ${placeData.error_message || 'Request denied'}`)
+        console.error('Google API error:', placeData.error_message)
+        throw new Error(`Google API error: ${placeData.error_message}`)
       }
 
       if (!placeData.results || !placeData.results[0]) {
@@ -85,8 +95,8 @@ serve(async (req) => {
         console.log('Directions API response:', directionsData)
 
         if (directionsData.status === 'REQUEST_DENIED') {
-          console.error('Google API error:', directionsData.error_message || 'Request denied')
-          throw new Error(`Google API error: ${directionsData.error_message || 'Request denied'}`)
+          console.error('Google API error:', directionsData.error_message)
+          throw new Error(`Google API error: ${directionsData.error_message}`)
         }
 
         if (directionsData.routes && directionsData.routes[0]) {
@@ -96,17 +106,6 @@ serve(async (req) => {
         }
       }
 
-      // Get timezone
-      const timezoneUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${place.geometry.location.lat},${place.geometry.location.lng}&timestamp=${Math.floor(Date.now() / 1000)}&key=${apiKey}`
-      const timezoneRes = await fetch(timezoneUrl)
-      const timezoneData = await timezoneRes.json()
-
-      if (timezoneData.status === 'REQUEST_DENIED') {
-        console.error('Google API error:', timezoneData.error_message || 'Request denied')
-        throw new Error(`Google API error: ${timezoneData.error_message || 'Request denied'}`)
-      }
-
-      console.log('Successfully got place details and related data')
       return new Response(
         JSON.stringify({
           placeId: place.place_id,
@@ -114,7 +113,6 @@ serve(async (req) => {
           photoUrl: place.photos?.[0] ? 
             `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${apiKey}` : 
             null,
-          timezone: timezoneData.timeZoneId,
           travelTime,
           durationInMinutes,
         }),
@@ -128,7 +126,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: 'Please provide either location or lat/lng coordinates'
+        details: error.message.includes('Google API') ? 
+          'Please ensure the Google API key has access to Places API, Geocoding API, and Directions API' : 
+          'Please provide either location or lat/lng coordinates'
       }),
       { 
         status: 400,
