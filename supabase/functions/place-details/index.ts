@@ -20,31 +20,36 @@ interface ReverseGeocodingResult {
   formattedAddress: string;
 }
 
-// Handle CORS preflight requests
 const handleOptions = () => {
   return new Response(null, {
     headers: corsHeaders,
   })
 }
 
-// Get directions and travel time between two points
 const getDirections = async (origin: string, destination: string, mode: string, apiKey: string): Promise<TravelInfo> => {
   console.log('Getting directions:', { origin, destination, mode })
   
   try {
-    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`
+    const encodedOrigin = encodeURIComponent(origin)
+    const encodedDestination = encodeURIComponent(destination)
+    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodedOrigin}&destination=${encodedDestination}&mode=${mode}&key=${apiKey}`
+    
+    console.log('Calling Google Directions API...')
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
-    if (directionsData.status === 'REQUEST_DENIED') {
-      console.error('Directions API error:', directionsData.error_message)
-      throw new Error('Failed to get directions')
+    console.log('Google Directions API response status:', directionsData.status)
+
+    if (directionsData.status !== 'OK') {
+      console.error('Directions API error:', directionsData.status, directionsData.error_message)
+      throw new Error(`Google Directions API error: ${directionsData.status}`)
     }
 
     const route = directionsData.routes?.[0]
     const leg = route?.legs?.[0]
     
     if (!leg) {
+      console.error('No route found in response')
       throw new Error('No route found')
     }
 
@@ -55,21 +60,24 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     }
   } catch (error) {
     console.error('Error getting directions:', error)
-    throw error
+    throw new Error(`Failed to get directions: ${error.message}`)
   }
 }
 
-// Get details for a single place
 const getPlaceDetails = async (location: string, apiKey: string): Promise<PlaceDetails> => {
   console.log('Getting place details for location:', location)
   
   try {
     const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(location)}&key=${apiKey}`
+    
+    console.log('Calling Google Places API...')
     const placeRes = await fetch(placeUrl)
     const placeData = await placeRes.json()
 
-    if (placeData.status === 'REQUEST_DENIED') {
-      console.error('Places API error:', placeData.error_message)
+    console.log('Google Places API response status:', placeData.status)
+
+    if (placeData.status !== 'OK') {
+      console.error('Places API error:', placeData.status, placeData.error_message)
       return {
         formattedAddress: location,
         photoUrl: null
@@ -78,6 +86,7 @@ const getPlaceDetails = async (location: string, apiKey: string): Promise<PlaceD
 
     const place = placeData.results?.[0]
     if (!place) {
+      console.log('No place found, returning original location')
       return {
         formattedAddress: location,
         photoUrl: null
@@ -92,24 +101,30 @@ const getPlaceDetails = async (location: string, apiKey: string): Promise<PlaceD
     }
   } catch (error) {
     console.error('Error getting place details:', error)
+    return {
+      formattedAddress: location,
+      photoUrl: null
+    }
+  }
+}
+
+const handlePlaceDetails = async (origin: string, destination: string, mode: string, apiKey: string) => {
+  console.log('Handling place details:', { origin, destination, mode })
+  
+  try {
+    const travelInfo = await getDirections(origin, destination, mode, apiKey)
+    const placeDetails = await getPlaceDetails(destination, apiKey)
+    
+    return {
+      ...placeDetails,
+      ...travelInfo
+    }
+  } catch (error) {
+    console.error('Error in handlePlaceDetails:', error)
     throw error
   }
 }
 
-// Get travel information and place details
-const handlePlaceDetails = async (origin: string, destination: string, mode: string, apiKey: string) => {
-  console.log('Handling place details:', { origin, destination, mode })
-  
-  const travelInfo = await getDirections(origin, destination, mode, apiKey)
-  const placeDetails = await getPlaceDetails(destination, apiKey)
-  
-  return {
-    ...placeDetails,
-    ...travelInfo
-  }
-}
-
-// Handle reverse geocoding
 const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string): Promise<ReverseGeocodingResult> => {
   console.log('Handling reverse geocoding:', { lat, lng })
   
@@ -118,9 +133,11 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string):
     const geocodingRes = await fetch(geocodingUrl)
     const geocodingData = await geocodingRes.json()
 
-    if (geocodingData.status === 'REQUEST_DENIED') {
-      console.error('Geocoding API error:', geocodingData.error_message)
-      throw new Error('Failed to get address')
+    if (geocodingData.status !== 'OK') {
+      console.error('Geocoding API error:', geocodingData.status, geocodingData.error_message)
+      return {
+        formattedAddress: `${lat},${lng}`
+      }
     }
 
     return {
@@ -132,9 +149,7 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string):
   }
 }
 
-// Main request handler
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return handleOptions()
   }
@@ -142,6 +157,7 @@ serve(async (req) => {
   try {
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
     if (!apiKey) {
+      console.error('Google API key not found')
       throw new Error('Google API key not found')
     }
 
@@ -174,7 +190,6 @@ serve(async (req) => {
       })
     }
 
-    // If we have neither coordinates nor valid origin/destination nor location, return an error
     return new Response(
       JSON.stringify({ 
         error: 'Failed to process request',
