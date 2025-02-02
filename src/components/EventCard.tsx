@@ -10,12 +10,12 @@ interface EventCardProps {
 }
 
 const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardProps) => {
-  const formatTime = (timeString: string) => {
+  const formatEventTime = (timeString: string) => {
     try {
       const date = parseISO(timeString);
-      return format(date, "h:mm a");
+      return format(date, "h:mm a"); // This will format time like "9:00 AM"
     } catch (error) {
-      console.error("Error formatting time:", error);
+      console.error("Error formatting time:", error, timeString);
       return timeString;
     }
   };
@@ -33,7 +33,7 @@ const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardP
           <h3 className="text-2xl font-semibold mb-2">{title}</h3>
           <p className="text-base opacity-90 mb-1">{location}</p>
           <p className="text-sm opacity-90">
-            {formatTime(startTime)} - {formatTime(endTime)}
+            {formatEventTime(startTime)} - {formatEventTime(endTime)}
           </p>
         </div>
       </div>

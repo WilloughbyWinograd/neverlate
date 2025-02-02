@@ -4,14 +4,12 @@ import PlanInput from "./PlanInput";
 import EventList from "./EventList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { set, addHours } from "date-fns";
-import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { parseTimeString, convertToTimezone, calculateEndTime } from "@/utils/timeUtils";
 
 const DayPlanner = () => {
   const [events, setEvents] = useState([]);
   const [isLate, setIsLate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState("Current Location");
   const { toast } = useToast();
 
   const handlePlanSubmit = async (planText: string) => {
@@ -38,67 +36,20 @@ const DayPlanner = () => {
         if (placeError) throw new Error(`Failed to get details for location: ${event.location}`);
 
         const timezone = placeData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const today = new Date();
         
         let startTime;
         try {
-          // Parse time in 12-hour or 24-hour format
-          const timeMatch = event.startTime.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-          if (!timeMatch) throw new Error(`Invalid time format: ${event.startTime}`);
-          
-          let [, hours, minutes = '0', period] = timeMatch;
-          hours = parseInt(hours);
-          minutes = parseInt(minutes);
-          
-          // Convert to 24-hour format if needed
-          if (period) {
-            if (period.toLowerCase() === 'pm' && hours < 12) hours += 12;
-            if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
-          }
-          
-          startTime = set(today, {
-            hours,
-            minutes,
-            seconds: 0,
-            milliseconds: 0
-          });
+          startTime = parseTimeString(event.startTime);
         } catch (error) {
           console.error('Error parsing start time:', error);
           throw new Error(`Invalid time format: ${event.startTime}`);
         }
         
-        // Set end time to 1 hour after start time if not specified
-        const endTime = event.endTime ? 
-          (() => {
-            try {
-              const timeMatch = event.endTime.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-              if (!timeMatch) throw new Error(`Invalid time format: ${event.endTime}`);
-              
-              let [, hours, minutes = '0', period] = timeMatch;
-              hours = parseInt(hours);
-              minutes = parseInt(minutes);
-              
-              if (period) {
-                if (period.toLowerCase() === 'pm' && hours < 12) hours += 12;
-                if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
-              }
-              
-              return set(today, {
-                hours,
-                minutes,
-                seconds: 0,
-                milliseconds: 0
-              });
-            } catch (error) {
-              console.error('Error parsing end time:', error);
-              return addHours(startTime, 1);
-            }
-          })() :
-          addHours(startTime, 1);
+        const endTime = calculateEndTime(startTime, event.endTime);
 
         // Convert to UTC for storage
-        const utcStartTime = fromZonedTime(startTime, timezone);
-        const utcEndTime = fromZonedTime(endTime, timezone);
+        const utcStartTime = convertToTimezone(startTime, timezone, true);
+        const utcEndTime = convertToTimezone(endTime, timezone, true);
 
         const { data: savedEvent, error: saveError } = await supabase
           .from('events')
@@ -117,8 +68,8 @@ const DayPlanner = () => {
         // Convert UTC times back to local timezone for display
         return {
           ...savedEvent,
-          start_time: toZonedTime(savedEvent.start_time, timezone).toISOString(),
-          end_time: toZonedTime(savedEvent.end_time, timezone).toISOString(),
+          start_time: convertToTimezone(new Date(savedEvent.start_time), timezone).toISOString(),
+          end_time: convertToTimezone(new Date(savedEvent.end_time), timezone).toISOString(),
         };
       }));
 
@@ -150,7 +101,6 @@ const DayPlanner = () => {
         <StatusHeader 
           isLate={isLate} 
           events={events} 
-          currentLocation={currentLocation}
         />
         <PlanInput onPlanSubmit={handlePlanSubmit} isLoading={isLoading} />
         <EventList events={events} />
