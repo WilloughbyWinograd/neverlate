@@ -15,12 +15,14 @@ serve(async (req) => {
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
 
     // Handle reverse geocoding if lat/lng provided
-    if (lat && lng) {
+    if (lat !== undefined && lng !== undefined) {
+      console.log('Reverse geocoding for coordinates:', { lat, lng })
       const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
       const geocodeRes = await fetch(geocodeUrl)
       const geocodeData = await geocodeRes.json()
 
       if (geocodeData.results && geocodeData.results[0]) {
+        console.log('Successfully got address from coordinates')
         return new Response(
           JSON.stringify({
             formattedAddress: geocodeData.results[0].formatted_address,
@@ -32,6 +34,7 @@ serve(async (req) => {
 
     // Handle place details and directions
     if (location) {
+      console.log('Getting place details for location:', location)
       const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(location)}&key=${apiKey}`
       const placeRes = await fetch(placeUrl)
       const placeData = await placeRes.json()
@@ -45,6 +48,7 @@ serve(async (req) => {
       let durationInMinutes = 0
 
       if (origin && mode) {
+        console.log('Calculating travel time from', origin, 'to', location)
         const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(location)}&mode=${mode}&key=${apiKey}`
         const directionsRes = await fetch(directionsUrl)
         const directionsData = await directionsRes.json()
@@ -61,6 +65,7 @@ serve(async (req) => {
       const timezoneRes = await fetch(timezoneUrl)
       const timezoneData = await timezoneRes.json()
 
+      console.log('Successfully got place details and related data')
       return new Response(
         JSON.stringify({
           placeId: place.place_id,
@@ -78,7 +83,7 @@ serve(async (req) => {
 
     throw new Error('Invalid request parameters')
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Error in place-details function:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
