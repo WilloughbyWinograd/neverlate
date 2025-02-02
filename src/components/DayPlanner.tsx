@@ -4,6 +4,8 @@ import PlanInput from "./PlanInput";
 import EventList from "./EventList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { parseISO, format } from "date-fns";
+import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 
 const DayPlanner = () => {
   const [events, setEvents] = useState([]);
@@ -35,7 +37,7 @@ const DayPlanner = () => {
           throw new Error(`Missing location for event: ${event.activity}`);
         }
 
-        // Get place details including photo and travel time
+        // Get place details including timezone and travel time
         const { data: placeData, error: placeError } = await supabase.functions.invoke('place-details', {
           body: { 
             location: event.location.trim(),
@@ -48,14 +50,22 @@ const DayPlanner = () => {
           throw new Error(`Failed to get details for location: ${event.location}`);
         }
 
+        // Convert local time to UTC for storage
+        const timezone = placeData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const localStartTime = parseISO(`${format(new Date(), 'yyyy-MM-dd')}T${event.startTime}`);
+        const localEndTime = parseISO(`${format(new Date(), 'yyyy-MM-dd')}T${event.endTime}`);
+        
+        const utcStartTime = zonedTimeToUtc(localStartTime, timezone);
+        const utcEndTime = zonedTimeToUtc(localEndTime, timezone);
+
         // Save event to database without user_id
         const { data: savedEvent, error: saveError } = await supabase
           .from('events')
           .insert([{
             title: event.activity,
             location: event.location,
-            start_time: event.startTime,
-            end_time: event.endTime,
+            start_time: utcStartTime.toISOString(),
+            end_time: utcEndTime.toISOString(),
             image_url: placeData.photoUrl || '/placeholder.svg',
           }])
           .select()
@@ -66,7 +76,12 @@ const DayPlanner = () => {
           throw new Error('Failed to save event to database');
         }
 
-        return savedEvent;
+        // Convert UTC times back to local for display
+        return {
+          ...savedEvent,
+          start_time: utcToZonedTime(savedEvent.start_time, timezone).toISOString(),
+          end_time: utcToZonedTime(savedEvent.end_time, timezone).toISOString(),
+        };
       }));
 
       setEvents(processedEvents);
