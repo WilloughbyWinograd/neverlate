@@ -9,7 +9,7 @@ interface StatusHeaderProps {
     start_time: string;
     location: string;
   }>;
-  currentLocation?: string; // Made optional with ?
+  currentLocation?: string;
 }
 
 const StatusHeader = ({ isLate: initialIsLate, events = [] }: StatusHeaderProps) => {
@@ -33,17 +33,42 @@ const StatusHeader = ({ isLate: initialIsLate, events = [] }: StatusHeaderProps)
       let prevLocation = '';
 
       for (const event of events) {
+        if (!event.location?.trim()) {
+          console.log("Skipping transit time fetch for empty location");
+          continue;
+        }
+
         try {
-          const { data } = await supabase.functions.invoke('place-details', {
-            body: { 
-              location: event.location,
-              mode: 'driving',
-              origin: prevLocation || undefined
+          // Only make the API call if we have both origin and destination
+          if (!prevLocation?.trim()) {
+            console.log("First event, getting location details only");
+            const { data } = await supabase.functions.invoke('place-details', {
+              body: { 
+                location: event.location.trim(),
+                mode: 'driving'
+              }
+            });
+            
+            if (data?.durationInMinutes) {
+              times[event.location] = data.durationInMinutes;
             }
-          });
-          
-          if (data?.durationInMinutes) {
-            times[event.location] = data.durationInMinutes;
+          } else {
+            console.log("Fetching transit time between locations:", {
+              origin: prevLocation.trim(),
+              destination: event.location.trim()
+            });
+            
+            const { data } = await supabase.functions.invoke('place-details', {
+              body: { 
+                origin: prevLocation.trim(),
+                destination: event.location.trim(),
+                mode: 'driving'
+              }
+            });
+            
+            if (data?.durationInMinutes) {
+              times[event.location] = data.durationInMinutes;
+            }
           }
           
           prevLocation = event.location;
