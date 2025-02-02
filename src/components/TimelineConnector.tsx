@@ -19,26 +19,25 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
     const updateTravelTime = async () => {
       setIsLoading(true);
       try {
-        // Ensure we're using the exact same location strings for both directions and travel time
-        const encodedOrigin = encodeURIComponent(fromLocation);
-        const encodedDestination = encodeURIComponent(toLocation);
-        
         const { data, error } = await supabase.functions.invoke('place-details', {
           body: { 
-            origin: encodedOrigin,
-            location: encodedDestination,
+            origin: fromLocation,
+            destination: toLocation,
             mode: showTransit ? 'transit' : 'driving'
           }
         });
 
-        if (error) throw error;
-        
-        if (data?.travelTime) {
-          setTravelTime(data.travelTime);
-        } else {
-          console.error('No travel time in response:', data);
-          setTravelTime('Unable to calculate');
+        if (error) {
+          console.error('Supabase function error:', error);
+          throw error;
         }
+
+        if (!data?.travelTime) {
+          console.error('No travel time in response:', data);
+          throw new Error('No travel time available');
+        }
+
+        setTravelTime(data.travelTime);
       } catch (error) {
         console.error('Error fetching travel time:', error);
         setTravelTime('Unable to calculate');

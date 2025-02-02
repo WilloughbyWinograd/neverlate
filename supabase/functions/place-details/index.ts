@@ -21,82 +21,17 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string) 
   }
 }
 
-const handlePlaceDetails = async (location: string, mode: string, origin: string | undefined, apiKey: string) => {
-  console.log('Fetching place details for location:', location)
-  
-  // Try Places API first
-  const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(location)}&key=${apiKey}`
-  const placeRes = await fetch(placeUrl)
-  const placeData = await placeRes.json()
-
-  // If Places API fails, try Geocoding API
-  if (placeData.status === 'REQUEST_DENIED') {
-    console.log('Places API failed, trying Geocoding API')
-    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${apiKey}`
-    const geocodeRes = await fetch(geocodeUrl)
-    const geocodeData = await geocodeRes.json()
-
-    if (geocodeData.status === 'REQUEST_DENIED') {
-      return {
-        formattedAddress: location,
-        photoUrl: null,
-        travelTime: null,
-        durationInMinutes: 0
-      }
-    }
-
-    const place = geocodeData.results?.[0]
-    if (!place) {
-      return {
-        formattedAddress: location,
-        photoUrl: null,
-        travelTime: null,
-        durationInMinutes: 0
-      }
-    }
-
-    let travelInfo = { travelTime: null, durationInMinutes: 0 }
-    if (origin && mode) {
-      travelInfo = await getDirections(origin, place.formatted_address, mode, apiKey)
-    }
-
-    return {
-      formattedAddress: place.formatted_address,
-      photoUrl: null,
-      ...travelInfo
-    }
-  }
-
-  // Use Places API results
-  const place = placeData.results?.[0]
-  if (!place) {
-    return {
-      formattedAddress: location,
-      photoUrl: null,
-      travelTime: null,
-      durationInMinutes: 0
-    }
-  }
-
-  let travelInfo = { travelTime: null, durationInMinutes: 0 }
-  if (origin && mode) {
-    travelInfo = await getDirections(origin, place.formatted_address, mode, apiKey)
-  }
-
-  return {
-    formattedAddress: place.formatted_address,
-    photoUrl: place.photos?.[0] ? 
-      `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${apiKey}` : 
-      null,
-    ...travelInfo
-  }
-}
-
 const getDirections = async (origin: string, destination: string, mode: string, apiKey: string) => {
+  console.log('Fetching directions:', { origin, destination, mode })
   try {
     const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
+
+    if (directionsData.status === 'REQUEST_DENIED') {
+      console.error('Directions API error:', directionsData.error_message)
+      return { travelTime: null, durationInMinutes: 0 }
+    }
 
     if (directionsData.routes?.[0]?.legs?.[0]) {
       const leg = directionsData.routes[0].legs[0]
@@ -111,6 +46,44 @@ const getDirections = async (origin: string, destination: string, mode: string, 
   return { travelTime: null, durationInMinutes: 0 }
 }
 
+const handlePlaceDetails = async (origin: string, destination: string, mode: string, apiKey: string) => {
+  console.log('Handling place details:', { origin, destination, mode })
+  
+  // Get travel time first
+  const travelInfo = await getDirections(origin, destination, mode, apiKey)
+  
+  // Get place details for the destination
+  const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(destination)}&key=${apiKey}`
+  const placeRes = await fetch(placeUrl)
+  const placeData = await placeRes.json()
+
+  if (placeData.status === 'REQUEST_DENIED') {
+    console.error('Places API error:', placeData.error_message)
+    return {
+      formattedAddress: destination,
+      photoUrl: null,
+      ...travelInfo
+    }
+  }
+
+  const place = placeData.results?.[0]
+  if (!place) {
+    return {
+      formattedAddress: destination,
+      photoUrl: null,
+      ...travelInfo
+    }
+  }
+
+  return {
+    formattedAddress: place.formatted_address,
+    photoUrl: place.photos?.[0] ? 
+      `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${apiKey}` : 
+      null,
+    ...travelInfo
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -122,17 +95,21 @@ serve(async (req) => {
       throw new Error('Google API key not configured')
     }
 
-    const { location, mode, origin, lat, lng } = await req.json()
-    console.log('Received request with params:', { location, mode, origin, lat, lng })
+    const { origin, destination, mode, lat, lng } = await req.json()
+    console.log('Received request with params:', { origin, destination, mode, lat, lng })
 
-    if (!location && (!lat || !lng)) {
-      throw new Error('Invalid request parameters')
+    if (lat && lng) {
+      const result = await handleReverseGeocoding(lat, lng, apiKey)
+      return new Response(JSON.stringify(result), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
     }
 
-    const result = lat && lng 
-      ? await handleReverseGeocoding(lat, lng, apiKey)
-      : await handlePlaceDetails(location, mode, origin, apiKey)
+    if (!origin || !destination) {
+      throw new Error('Origin and destination are required')
+    }
 
+    const result = await handlePlaceDetails(origin, destination, mode || 'driving', apiKey)
     return new Response(JSON.stringify(result), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
