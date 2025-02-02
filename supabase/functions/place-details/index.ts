@@ -38,11 +38,11 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
-    console.log('Google Directions API response status:', directionsData.status)
+    console.log('Google Directions API response:', directionsData)
 
     if (directionsData.status !== 'OK') {
       console.error('Directions API error:', directionsData.status, directionsData.error_message)
-      throw new Error(`Google Directions API error: ${directionsData.status}`)
+      throw new Error(`Google Directions API error: ${directionsData.status}${directionsData.error_message ? ': ' + directionsData.error_message : ''}`)
     }
 
     const route = directionsData.routes?.[0]
@@ -60,7 +60,7 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     }
   } catch (error) {
     console.error('Error getting directions:', error)
-    throw new Error(`Failed to get directions: ${error.message}`)
+    throw error
   }
 }
 
@@ -74,7 +74,7 @@ const getPlaceDetails = async (location: string, apiKey: string): Promise<PlaceD
     const placeRes = await fetch(placeUrl)
     const placeData = await placeRes.json()
 
-    console.log('Google Places API response status:', placeData.status)
+    console.log('Google Places API response:', placeData)
 
     if (placeData.status !== 'OK') {
       console.error('Places API error:', placeData.status, placeData.error_message)
@@ -133,6 +133,8 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string):
     const geocodingRes = await fetch(geocodingUrl)
     const geocodingData = await geocodingRes.json()
 
+    console.log('Geocoding API response:', geocodingData)
+
     if (geocodingData.status !== 'OK') {
       console.error('Geocoding API error:', geocodingData.status, geocodingData.error_message)
       return {
@@ -155,6 +157,7 @@ serve(async (req) => {
   }
 
   try {
+    // Get API key from environment variable
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
     if (!apiKey) {
       console.error('Google API key not found')
