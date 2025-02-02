@@ -5,24 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string) => {
-  console.log('Performing reverse geocoding for coordinates:', { lat, lng })
-  const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
-  const geocodeRes = await fetch(geocodeUrl)
-  const geocodeData = await geocodeRes.json()
-
-  if (geocodeData.status === 'REQUEST_DENIED') {
-    console.error('Geocoding API error:', geocodeData.error_message)
-    return { formattedAddress: "Current Location" }
-  }
-
-  return {
-    formattedAddress: geocodeData.results?.[0]?.formatted_address || "Current Location"
-  }
+interface TravelInfo {
+  travelTime: string;
+  durationInMinutes: number;
+  timezone?: string;
 }
 
-const getDirections = async (origin: string, destination: string, mode: string, apiKey: string) => {
-  console.log('Fetching directions:', { origin, destination, mode })
+interface PlaceDetails {
+  formattedAddress: string;
+  photoUrl: string | null;
+}
+
+interface ReverseGeocodingResult {
+  formattedAddress: string;
+}
+
+// Handle CORS preflight requests
+const handleOptions = () => {
+  return new Response(null, {
+    headers: corsHeaders,
+  })
+}
+
+// Get directions and travel time between two points
+const getDirections = async (origin: string, destination: string, mode: string, apiKey: string): Promise<TravelInfo> => {
+  console.log('Getting directions:', { origin, destination, mode })
   
   try {
     const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`
@@ -31,26 +38,29 @@ const getDirections = async (origin: string, destination: string, mode: string, 
 
     if (directionsData.status === 'REQUEST_DENIED') {
       console.error('Directions API error:', directionsData.error_message)
-      throw new Error(directionsData.error_message)
+      throw new Error('Failed to get directions')
     }
 
-    if (!directionsData.routes?.[0]?.legs?.[0]) {
-      console.error('No route found for:', { origin, destination, mode })
-      throw new Error('No route found between these locations')
+    const route = directionsData.routes?.[0]
+    const leg = route?.legs?.[0]
+    
+    if (!leg) {
+      throw new Error('No route found')
     }
 
-    const leg = directionsData.routes[0].legs[0]
     return {
       travelTime: leg.duration.text,
-      durationInMinutes: Math.ceil(leg.duration.value / 60)
+      durationInMinutes: Math.ceil(leg.duration.value / 60),
+      timezone: route.timezone
     }
   } catch (error) {
-    console.error('Error fetching directions:', error)
+    console.error('Error getting directions:', error)
     throw error
   }
 }
 
-const getPlaceDetails = async (location: string, apiKey: string) => {
+// Get details for a single place
+const getPlaceDetails = async (location: string, apiKey: string): Promise<PlaceDetails> => {
   console.log('Getting place details for location:', location)
   
   try {
@@ -86,13 +96,11 @@ const getPlaceDetails = async (location: string, apiKey: string) => {
   }
 }
 
+// Get travel information and place details
 const handlePlaceDetails = async (origin: string, destination: string, mode: string, apiKey: string) => {
   console.log('Handling place details:', { origin, destination, mode })
   
-  // Get travel time first
   const travelInfo = await getDirections(origin, destination, mode, apiKey)
-  
-  // Get place details for the destination
   const placeDetails = await getPlaceDetails(destination, apiKey)
   
   return {
@@ -101,16 +109,40 @@ const handlePlaceDetails = async (origin: string, destination: string, mode: str
   }
 }
 
+// Handle reverse geocoding
+const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string): Promise<ReverseGeocodingResult> => {
+  console.log('Handling reverse geocoding:', { lat, lng })
+  
+  try {
+    const geocodingUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
+    const geocodingRes = await fetch(geocodingUrl)
+    const geocodingData = await geocodingRes.json()
+
+    if (geocodingData.status === 'REQUEST_DENIED') {
+      console.error('Geocoding API error:', geocodingData.error_message)
+      throw new Error('Failed to get address')
+    }
+
+    return {
+      formattedAddress: geocodingData.results?.[0]?.formatted_address || `${lat},${lng}`
+    }
+  } catch (error) {
+    console.error('Error in reverse geocoding:', error)
+    throw error
+  }
+}
+
+// Main request handler
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return handleOptions()
   }
 
   try {
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
     if (!apiKey) {
-      throw new Error('Google API key not configured')
+      throw new Error('Google API key not found')
     }
 
     const requestData = await req.json()
@@ -134,7 +166,7 @@ serve(async (req) => {
       })
     }
 
-    // For directions requests, validate both origin and destination
+    // Handle directions request
     if (origin && destination) {
       const result = await handlePlaceDetails(origin, destination, mode || 'driving', apiKey)
       return new Response(JSON.stringify(result), { 
@@ -150,19 +182,19 @@ serve(async (req) => {
       }),
       { 
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   } catch (error) {
-    console.error('Error in place-details function:', error)
+    console.error('Error processing request:', error)
     return new Response(
       JSON.stringify({ 
         error: 'Failed to process request',
         details: error.message
       }),
       { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
