@@ -17,23 +17,16 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
 
   useEffect(() => {
     const updateTravelTime = async () => {
-      // Reset state at the start of each update
       setIsLoading(true);
       setTravelTime(null);
 
       try {
-        // Enhanced validation for locations
-        if (!fromLocation?.trim() || !toLocation?.trim()) {
-          console.log("Missing location data:", { fromLocation, toLocation });
-          setTravelTime('Location data incomplete');
-          setIsLoading(false);
-          return;
-        }
-
-        // Additional validation for loading states
-        if (fromLocation === "Loading location..." || toLocation === "Loading location...") {
-          console.log("Locations still loading");
-          setTravelTime('Loading locations...');
+        // Skip API call if locations are not ready
+        if (!fromLocation?.trim() || !toLocation?.trim() || 
+            fromLocation === "Loading location..." || 
+            toLocation === "Loading location...") {
+          console.log("Locations not ready:", { fromLocation, toLocation });
+          setTravelTime('Waiting for locations...');
           setIsLoading(false);
           return;
         }
@@ -77,8 +70,10 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
   }, [fromLocation, toLocation, showTransit]);
 
   const handleGetDirections = () => {
-    if (!fromLocation?.trim() || !toLocation?.trim()) {
-      console.log("Cannot get directions - missing location data");
+    if (!fromLocation?.trim() || !toLocation?.trim() || 
+        fromLocation === "Loading location..." || 
+        toLocation === "Loading location...") {
+      console.log("Cannot get directions - locations not ready");
       return;
     }
     

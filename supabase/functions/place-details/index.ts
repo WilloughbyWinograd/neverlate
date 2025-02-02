@@ -24,13 +24,8 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string) 
 const getDirections = async (origin: string, destination: string, mode: string, apiKey: string) => {
   console.log('Fetching directions:', { origin, destination, mode })
   
-  // Validate input parameters
-  if (!origin?.trim() || !destination?.trim()) {
-    throw new Error('Origin and destination are required and must not be empty')
-  }
-
   try {
-    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin.trim())}&destination=${encodeURIComponent(destination.trim())}&mode=${mode}&key=${apiKey}`
+    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
@@ -105,8 +100,10 @@ serve(async (req) => {
       throw new Error('Google API key not configured')
     }
 
-    const { origin, destination, mode, lat, lng } = await req.json()
-    console.log('Received request with params:', { origin, destination, mode, lat, lng })
+    const requestData = await req.json()
+    console.log('Received request with data:', requestData)
+
+    const { origin, destination, mode, lat, lng } = requestData
 
     // Handle reverse geocoding request
     if (typeof lat === 'number' && typeof lng === 'number') {
@@ -116,24 +113,25 @@ serve(async (req) => {
       })
     }
 
-    // Handle directions/place details request
-    if (!origin?.trim() || !destination?.trim()) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to process request',
-          details: 'Origin and destination are required and must not be empty'
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+    // For directions requests, validate both origin and destination
+    if (origin && destination) {
+      const result = await handlePlaceDetails(origin, destination, mode || 'driving', apiKey)
+      return new Response(JSON.stringify(result), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
     }
 
-    const result = await handlePlaceDetails(origin, destination, mode || 'driving', apiKey)
-    return new Response(JSON.stringify(result), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    // If we have neither coordinates nor valid origin/destination, return an error
+    return new Response(
+      JSON.stringify({ 
+        error: 'Failed to process request',
+        details: 'Either coordinates (lat/lng) or both origin and destination are required'
+      }),
+      { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
   } catch (error) {
     console.error('Error in place-details function:', error)
     return new Response(
