@@ -1,69 +1,62 @@
-# Welcome to your Lovable project
+# NeverLate - Your Smart Daily Planner
 
-## Project info
+NeverLate is an AI-powered daily planner that helps you organize your location-based activities with intelligent time management. Simply describe your plans in natural language, and let NeverLate create a structured schedule while handling timezone differences automatically.
 
-**URL**: https://lovable.dev/projects/219748bd-1260-468d-84b0-b5aa2d74ea47
+## Live Demo
 
-## How can I edit this code?
+Visit the live application at: [https://neverlate.lovable.app/](https://neverlate.lovable.app/)
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- **Natural Language Input**: Just type your plans as you would describe them to a friend
+- **Location-Based Planning**: Automatically handles different locations and their timezones
+- **Smart Time Management**: Creates a structured schedule from your free-form text
+- **Visual Timeline**: See your day's activities in an easy-to-follow format
+- **Real-Time Status**: Instantly know if you're running late for your next activity
+- **Demo Mode**: Try out the app with a pre-made New York City itinerary
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/219748bd-1260-468d-84b0-b5aa2d74ea47) and start prompting.
+## How to Use
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Enter Your Plans**: Type your plans in natural language, including locations and times
+   - Example: "Visit Central Park Zoo at 11am for animal watching. Head to Chelsea Market at 2pm for food exploration."
 
-**Use your preferred IDE**
+2. **Create Schedule**: Click "Create Plan" to generate your structured timeline
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+3. **View Timeline**: See your activities organized chronologically with:
+   - Location details
+   - Start and end times
+   - Visual status indicators
+   - Location images
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+4. **Try Demo**: Click "Try Demo" to see how it works with a sample NYC itinerary
 
-Follow these steps:
+## Development
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+This project is built with:
+- React + TypeScript
+- Vite
+- Tailwind CSS
+- Shadcn UI
+- Supabase (Backend)
+- Claude AI API (Natural Language Processing)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Local Development
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+# Clone the repository
+git clone <repository-url>
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Contributing
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Feel free to open issues or submit pull requests if you have suggestions for improvements.
 
-**Use GitHub Codespaces**
+## License
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/219748bd-1260-468d-84b0-b5aa2d74ea47) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+This project is open source and available under the MIT License.
