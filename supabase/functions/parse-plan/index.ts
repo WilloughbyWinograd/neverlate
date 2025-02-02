@@ -98,7 +98,8 @@ serve(async (req) => {
     console.error('Error in parse-plan function:', error)
     return new Response(
       JSON.stringify({
-        error: error.message || 'An error occurred while processing your plan'
+        error: error.message || 'An error occurred while processing your plan',
+        details: error.stack
       }),
       {
         status: 400,
