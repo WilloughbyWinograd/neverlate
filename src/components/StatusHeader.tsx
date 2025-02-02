@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, MapPin } from "lucide-react";
+import { Clock } from "lucide-react";
 import { parseISO, isAfter, addMinutes, format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,11 +12,10 @@ interface StatusHeaderProps {
   currentLocation: string;
 }
 
-const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: StatusHeaderProps) => {
+const StatusHeader = ({ isLate: initialIsLate, events = [] }: StatusHeaderProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLate, setIsLate] = useState(initialIsLate);
   const [transitTimes, setTransitTimes] = useState<{[key: string]: number}>({});
-  const [formattedLocation, setFormattedLocation] = useState(currentLocation);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -27,47 +26,11 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
   }, []);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { data, error } = await supabase.functions.invoke('place-details', {
-              body: { 
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-                mode: 'driving'
-              }
-            });
-            
-            if (error) throw error;
-            
-            if (data?.formattedAddress) {
-              // Extract just the street address part if possible
-              const addressParts = data.formattedAddress.split(',');
-              const streetAddress = addressParts[0] || data.formattedAddress;
-              setFormattedLocation(streetAddress);
-            } else {
-              setFormattedLocation("Address unavailable");
-            }
-          } catch (error) {
-            console.error("Error getting location:", error);
-            setFormattedLocation("Address unavailable");
-          }
-        },
-        (error) => {
-          console.error("Geolocation error:", error);
-          setFormattedLocation("Location access denied");
-        }
-      );
-    }
-  }, []);
-
-  useEffect(() => {
     const fetchTransitTimes = async () => {
       if (!events.length) return;
       
       const times: {[key: string]: number} = {};
-      let prevLocation = formattedLocation;
+      let prevLocation = '';
 
       for (const event of events) {
         try {
@@ -75,7 +38,7 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
             body: { 
               location: event.location,
               mode: 'driving',
-              origin: prevLocation
+              origin: prevLocation || undefined
             }
           });
           
@@ -93,7 +56,7 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
     };
 
     fetchTransitTimes();
-  }, [events, formattedLocation]);
+  }, [events]);
 
   useEffect(() => {
     if (events && events.length > 0) {
@@ -110,19 +73,11 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
     <div className="p-4 w-full max-w-3xl mx-auto mb-6 rounded-lg animate-fade-in bg-white" 
          style={{ backgroundColor: isLate ? "rgb(var(--destructive) / 0.1)" : "rgb(var(--planner) / 0.2)" }}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            <span className="font-medium">
-              {format(currentTime, "h:mm a")}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="w-5 h-5" />
-            <span className="font-medium text-sm">
-              {formattedLocation}
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          <Clock className="w-5 h-5" />
+          <span className="font-medium">
+            {format(currentTime, "h:mm a")}
+          </span>
         </div>
         <div className="text-sm font-medium">
           {isLate ? (

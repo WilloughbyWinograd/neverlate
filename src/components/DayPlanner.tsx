@@ -40,30 +40,65 @@ const DayPlanner = () => {
         const timezone = placeData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const today = new Date();
         
-        // Parse time strings and create Date objects
-        const [startHours, startMinutes] = event.startTime.split(':').map(Number);
-        
-        // Create local time Date objects with correct hours
-        const localStartTime = set(today, {
-          hours: startHours,
-          minutes: startMinutes,
-          seconds: 0,
-          milliseconds: 0
-        });
-        
-        // Set end time to 1 hour after start time if not specified
-        const localEndTime = event.endTime ? 
-          set(today, {
-            hours: parseInt(event.endTime.split(':')[0]),
-            minutes: parseInt(event.endTime.split(':')[1]),
+        let startTime;
+        try {
+          // Parse time in 12-hour or 24-hour format
+          const timeMatch = event.startTime.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+          if (!timeMatch) throw new Error(`Invalid time format: ${event.startTime}`);
+          
+          let [, hours, minutes = '0', period] = timeMatch;
+          hours = parseInt(hours);
+          minutes = parseInt(minutes);
+          
+          // Convert to 24-hour format if needed
+          if (period) {
+            if (period.toLowerCase() === 'pm' && hours < 12) hours += 12;
+            if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
+          }
+          
+          startTime = set(today, {
+            hours,
+            minutes,
             seconds: 0,
             milliseconds: 0
-          }) :
-          addHours(localStartTime, 1);
+          });
+        } catch (error) {
+          console.error('Error parsing start time:', error);
+          throw new Error(`Invalid time format: ${event.startTime}`);
+        }
+        
+        // Set end time to 1 hour after start time if not specified
+        const endTime = event.endTime ? 
+          (() => {
+            try {
+              const timeMatch = event.endTime.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+              if (!timeMatch) throw new Error(`Invalid time format: ${event.endTime}`);
+              
+              let [, hours, minutes = '0', period] = timeMatch;
+              hours = parseInt(hours);
+              minutes = parseInt(minutes);
+              
+              if (period) {
+                if (period.toLowerCase() === 'pm' && hours < 12) hours += 12;
+                if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
+              }
+              
+              return set(today, {
+                hours,
+                minutes,
+                seconds: 0,
+                milliseconds: 0
+              });
+            } catch (error) {
+              console.error('Error parsing end time:', error);
+              return addHours(startTime, 1);
+            }
+          })() :
+          addHours(startTime, 1);
 
         // Convert to UTC for storage
-        const utcStartTime = fromZonedTime(localStartTime, timezone);
-        const utcEndTime = fromZonedTime(localEndTime, timezone);
+        const utcStartTime = fromZonedTime(startTime, timezone);
+        const utcEndTime = fromZonedTime(endTime, timezone);
 
         const { data: savedEvent, error: saveError } = await supabase
           .from('events')
