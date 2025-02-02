@@ -29,6 +29,10 @@ serve(async (req) => {
 
       console.log('Geocode response:', geocodeData)
 
+      if (geocodeData.status === 'REQUEST_DENIED') {
+        throw new Error(`Google API error: ${geocodeData.error_message || 'Request denied'}`)
+      }
+
       if (geocodeData.results && geocodeData.results[0]) {
         console.log('Successfully got address from coordinates')
         return new Response(
@@ -49,8 +53,12 @@ serve(async (req) => {
 
       console.log('Place API response:', placeData)
 
+      if (placeData.status === 'REQUEST_DENIED') {
+        throw new Error(`Google API error: ${placeData.error_message || 'Request denied'}`)
+      }
+
       if (!placeData.results || !placeData.results[0]) {
-        throw new Error('Location not found')
+        throw new Error(`Location not found: ${location}`)
       }
 
       const place = placeData.results[0]
@@ -65,6 +73,10 @@ serve(async (req) => {
 
         console.log('Directions API response:', directionsData)
 
+        if (directionsData.status === 'REQUEST_DENIED') {
+          throw new Error(`Google API error: ${directionsData.error_message || 'Request denied'}`)
+        }
+
         if (directionsData.routes && directionsData.routes[0]) {
           const leg = directionsData.routes[0].legs[0]
           travelTime = leg.duration.text
@@ -76,6 +88,10 @@ serve(async (req) => {
       const timezoneUrl = `https://maps.googleapis.com/maps/api/timezone/json?location=${place.geometry.location.lat},${place.geometry.location.lng}&timestamp=${Math.floor(Date.now() / 1000)}&key=${apiKey}`
       const timezoneRes = await fetch(timezoneUrl)
       const timezoneData = await timezoneRes.json()
+
+      if (timezoneData.status === 'REQUEST_DENIED') {
+        throw new Error(`Google API error: ${timezoneData.error_message || 'Request denied'}`)
+      }
 
       console.log('Successfully got place details and related data')
       return new Response(
@@ -103,7 +119,7 @@ serve(async (req) => {
       }),
       { 
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     )
   }
