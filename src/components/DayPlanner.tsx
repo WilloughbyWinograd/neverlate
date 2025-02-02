@@ -28,6 +28,12 @@ const DayPlanner = () => {
         throw new Error('Invalid response from parse-plan function');
       }
 
+      // Get the current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('You must be logged in to create events');
+      }
+
       // For each parsed event, get place details and save to database
       const processedEvents = await Promise.all(parsedData.events.map(async (event: any) => {
         if (!event.location) {
@@ -48,10 +54,11 @@ const DayPlanner = () => {
           throw new Error(`Failed to get details for location: ${event.location}`);
         }
 
-        // Save event to database
+        // Save event to database with user_id
         const { data: savedEvent, error: saveError } = await supabase
           .from('events')
           .insert([{
+            user_id: user.id,
             title: event.activity,
             location: event.location,
             start_time: event.startTime,
