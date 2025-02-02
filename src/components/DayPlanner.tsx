@@ -14,7 +14,6 @@ const DayPlanner = () => {
   const handlePlanSubmit = async (planText: string) => {
     setIsLoading(true);
     try {
-      // Call the parse-plan function to get structured events
       const { data: parsedData, error: parseError } = await supabase.functions.invoke('parse-plan', {
         body: { planText }
       });
