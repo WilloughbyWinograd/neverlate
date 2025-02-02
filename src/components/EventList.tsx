@@ -1,6 +1,7 @@
 import EventCard from "./EventCard";
 import TimelineConnector from "./TimelineConnector";
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Event {
   id: string;
