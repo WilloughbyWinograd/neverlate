@@ -21,9 +21,7 @@ interface ReverseGeocodingResult {
 }
 
 const handleOptions = () => {
-  return new Response(null, {
-    headers: corsHeaders,
-  })
+  return new Response(null, { headers: corsHeaders })
 }
 
 const getDirections = async (origin: string, destination: string, mode: string, apiKey: string): Promise<TravelInfo> => {
@@ -34,31 +32,21 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     const encodedDestination = encodeURIComponent(destination)
     const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodedOrigin}&destination=${encodedDestination}&mode=${mode}&key=${apiKey}`
     
-    console.log('Calling Google Directions API with URL pattern:', directionsUrl.replace(apiKey, 'REDACTED'))
+    console.log('Calling Google Directions API...')
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
-    console.log('Google Directions API response:', {
-      status: directionsData.status,
-      error_message: directionsData.error_message,
-      available_travel_modes: directionsData.available_travel_modes
-    })
+    console.log('Google Directions API response status:', directionsData.status)
 
     if (directionsData.status !== 'OK') {
-      const errorDetails = directionsData.error_message || 
-        `Status: ${directionsData.status}. This usually means the API key needs to be:
-        1. Enabled for the Directions API
-        2. Have proper billing set up
-        3. Have appropriate API restrictions set`
-      throw new Error(`Google Directions API error: ${errorDetails}`)
+      throw new Error(`Directions API error: ${directionsData.status}${directionsData.error_message ? ` - ${directionsData.error_message}` : ''}`)
     }
 
     const route = directionsData.routes?.[0]
     const leg = route?.legs?.[0]
     
     if (!leg) {
-      console.error('No route found in response')
-      throw new Error('No route found')
+      throw new Error('No route found in response')
     }
 
     return {
@@ -78,11 +66,11 @@ const getPlaceDetails = async (location: string, apiKey: string): Promise<PlaceD
   try {
     const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(location)}&key=${apiKey}`
     
-    console.log('Calling Google Places API with URL pattern:', placeUrl.replace(apiKey, 'REDACTED'))
+    console.log('Calling Google Places API...')
     const placeRes = await fetch(placeUrl)
     const placeData = await placeRes.json()
 
-    console.log('Google Places API response:', placeData)
+    console.log('Google Places API response status:', placeData.status)
 
     if (placeData.status !== 'OK') {
       console.error('Places API error:', placeData.status, placeData.error_message)
@@ -138,22 +126,14 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string):
   
   try {
     const geocodingUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
-    console.log('Calling Google Geocoding API with URL pattern:', geocodingUrl.replace(apiKey, 'REDACTED'))
+    console.log('Calling Google Geocoding API...')
     const geocodingRes = await fetch(geocodingUrl)
     const geocodingData = await geocodingRes.json()
 
-    console.log('Geocoding API response:', {
-      status: geocodingData.status,
-      error_message: geocodingData.error_message
-    })
+    console.log('Geocoding API response status:', geocodingData.status)
 
     if (geocodingData.status !== 'OK') {
-      const errorDetails = geocodingData.error_message || 
-        `Status: ${geocodingData.status}. This usually means the API key needs to be:
-        1. Enabled for the Geocoding API
-        2. Have proper billing set up
-        3. Have appropriate API restrictions set`
-      throw new Error(`Geocoding API error: ${errorDetails}`)
+      throw new Error(`Geocoding API error: ${geocodingData.status}${geocodingData.error_message ? ` - ${geocodingData.error_message}` : ''}`)
     }
 
     return {
@@ -174,10 +154,10 @@ serve(async (req) => {
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
     if (!apiKey) {
       console.error('Google API key not found')
-      throw new Error('Google API key not found')
+      throw new Error('Google API key not found in environment variables')
     }
 
-    console.log('Retrieved Google API key:', apiKey.substring(0, 5) + '...')
+    console.log('Successfully retrieved Google API key')
 
     const requestData = await req.json()
     console.log('Received request with data:', requestData)
@@ -207,7 +187,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        error: 'Failed to process request',
+        error: 'Invalid request',
         details: 'Either coordinates (lat/lng), a single location, or both origin and destination are required'
       }),
       { 
