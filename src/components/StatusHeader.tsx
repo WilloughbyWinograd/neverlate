@@ -9,7 +9,7 @@ interface StatusHeaderProps {
     start_time: string;
     location: string;
   }>;
-  currentLocation: string;
+  currentLocation?: string; // Made optional with ?
 }
 
 const StatusHeader = ({ isLate: initialIsLate, events = [] }: StatusHeaderProps) => {
