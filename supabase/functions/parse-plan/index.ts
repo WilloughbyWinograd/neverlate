@@ -52,13 +52,25 @@ serve(async (req) => {
           max_tokens: 1024,
           messages: [{
             role: 'user',
-            content: `Parse this daily plan into structured events. Return ONLY a JSON array of objects with these exact fields:
-            - activity (string)
-            - location (string)
+            content: `Parse this daily plan into structured events. For each event:
+            1. Create a simplified activity title by:
+               - Removing location names from the activity
+               - Using concise action verbs (e.g., "Get lunch" instead of "Get lunch at Restaurant X")
+               - Keeping only the core activity description
+            2. Store the full location separately
+            
+            Return ONLY a JSON array of objects with these exact fields:
+            - activity (string, simplified title)
+            - location (string, full location name)
             - startTime (ISO string)
             - endTime (ISO string, estimate 1 hour duration if not specified)
             
             Plan text: ${planText}
+            
+            Example transformations:
+            "Take the cable car to Ghirardelli Square for chocolate sampling" → activity: "Sample chocolate"
+            "Get lunch at House of Prime Rib" → activity: "Get lunch"
+            "Visit Golden Gate Bridge for photos" → activity: "Take photos"
             
             Important: Return ONLY the JSON array, no other text or explanation.`
           }]
