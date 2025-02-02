@@ -62,8 +62,8 @@ serve(async (req) => {
             Return ONLY a JSON array of objects with these exact fields:
             - activity (string, simplified title)
             - location (string, full location name)
-            - startTime (ISO string)
-            - endTime (ISO string, estimate 1 hour duration if not specified)
+            - startTime (string, in format "HH:mm" like "14:00" or "09:30")
+            - endTime (string, in format "HH:mm", estimate 1 hour duration if not specified)
             
             Plan text: ${planText}
             
@@ -79,15 +79,16 @@ serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Claude API error:', errorText)
-        throw new Error('Failed to parse plan with Claude API')
+        console.error('Claude API error response:', errorText)
+        throw new Error(`Claude API returned status ${response.status}: ${errorText}`)
       }
 
       const data = await response.json()
       console.log('Claude API response:', data)
 
       if (!data.content || !data.content[0] || !data.content[0].text) {
-        throw new Error('Invalid response from Claude API')
+        console.error('Invalid Claude API response structure:', data)
+        throw new Error('Invalid response structure from Claude API')
       }
 
       // Extract JSON from Claude's response and parse it
@@ -102,11 +103,12 @@ serve(async (req) => {
         events = JSON.parse(jsonMatch[0])
         console.log('Parsed events:', events)
       } catch (parseError) {
-        console.error('JSON parse error:', parseError)
+        console.error('JSON parse error:', parseError, 'Raw text:', jsonMatch[0])
         throw new Error('Failed to parse events JSON')
       }
 
       if (!Array.isArray(events)) {
+        console.error('Invalid events format - expected array, got:', typeof events)
         throw new Error('Invalid events format - expected array')
       }
 
@@ -128,7 +130,7 @@ serve(async (req) => {
 
     } catch (apiError) {
       console.error('Error calling Claude API:', apiError)
-      throw new Error('Failed to process plan with Claude API')
+      throw apiError
     }
 
   } catch (error) {
