@@ -54,7 +54,7 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
   return (
     <div className="relative flex items-center my-2 pl-6">
       <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-planner-300" />
-      <div className="relative -left-6 w-full bg-white border border-planner-300 rounded-lg p-3 shadow-sm">
+      <div className="relative -left-6 w-full max-w-4xl mx-auto bg-white border border-planner-300 rounded-lg p-3 shadow-sm">
         <div className="flex items-center justify-between gap-2 text-sm text-gray-600">
           <div className="flex items-center gap-2">
             {showTransit ? <Train className="w-4 h-4" /> : <Car className="w-4 h-4" />}
@@ -66,7 +66,7 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm">Transit</span>
+              <span className="text-sm">Public Transit</span>
               <Switch
                 checked={showTransit}
                 onCheckedChange={setShowTransit}

@@ -1,46 +1,38 @@
-import { MapPin, Clock } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { format } from "date-fns";
 
 interface EventCardProps {
   title: string;
   location: string;
   startTime: string;
   endTime: string;
-  imageUrl: string;
+  imageUrl?: string;
 }
 
 const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardProps) => {
-  const fallbackImage = '/placeholder.svg';
+  const formatTime = (timeString: string) => {
+    const date = new Date(timeString);
+    return format(date, "h:mm a");
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4 animate-fade-in">
-      <div className="relative h-48">
+    <Card className="w-full max-w-4xl mx-auto overflow-hidden">
+      <div className="relative">
         <img
-          src={imageUrl || fallbackImage}
-          alt={location}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = fallbackImage;
-          }}
+          src={imageUrl || "/placeholder.svg"}
+          alt={title}
+          className="w-full h-48 object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-      </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-lg mb-2">{title}</h3>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4" />
-            <span>{location}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Clock className="w-4 h-4" />
-            <span>
-              {new Date(startTime).toLocaleTimeString()} - {new Date(endTime).toLocaleTimeString()}
-            </span>
-          </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+          <h3 className="text-xl font-semibold mb-1">{title}</h3>
+          <p className="text-sm opacity-90">{location}</p>
+          <p className="text-sm opacity-90">
+            {formatTime(startTime)} to {formatTime(endTime)}
+          </p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 
