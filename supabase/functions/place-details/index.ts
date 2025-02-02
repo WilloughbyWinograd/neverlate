@@ -14,12 +14,20 @@ serve(async (req) => {
     const { location, mode, origin, lat, lng } = await req.json()
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
 
+    if (!apiKey) {
+      throw new Error('Google API key not configured')
+    }
+
+    console.log('Received request with params:', { location, mode, origin, lat, lng })
+
     // Handle reverse geocoding if lat/lng provided
-    if (lat !== undefined && lng !== undefined) {
+    if (lat && lng) {
       console.log('Reverse geocoding for coordinates:', { lat, lng })
       const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
       const geocodeRes = await fetch(geocodeUrl)
       const geocodeData = await geocodeRes.json()
+
+      console.log('Geocode response:', geocodeData)
 
       if (geocodeData.results && geocodeData.results[0]) {
         console.log('Successfully got address from coordinates')
@@ -39,6 +47,8 @@ serve(async (req) => {
       const placeRes = await fetch(placeUrl)
       const placeData = await placeRes.json()
 
+      console.log('Place API response:', placeData)
+
       if (!placeData.results || !placeData.results[0]) {
         throw new Error('Location not found')
       }
@@ -52,6 +62,8 @@ serve(async (req) => {
         const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(location)}&mode=${mode}&key=${apiKey}`
         const directionsRes = await fetch(directionsUrl)
         const directionsData = await directionsRes.json()
+
+        console.log('Directions API response:', directionsData)
 
         if (directionsData.routes && directionsData.routes[0]) {
           const leg = directionsData.routes[0].legs[0]
@@ -81,11 +93,14 @@ serve(async (req) => {
       )
     }
 
-    throw new Error('Invalid request parameters')
+    throw new Error('Invalid request parameters: requires either location or lat/lng coordinates')
   } catch (error) {
     console.error('Error in place-details function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: 'Please provide either location or lat/lng coordinates'
+      }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

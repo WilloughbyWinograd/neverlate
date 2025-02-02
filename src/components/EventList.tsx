@@ -24,15 +24,25 @@ const EventList = ({ events }: EventListProps) => {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            // Use Supabase edge function to get location details
+            console.log("Getting current location with coordinates:", {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            });
+            
             const { data, error } = await supabase.functions.invoke('place-details', {
               body: { 
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
+                lat: position.coords.latitude.toString(),
+                lng: position.coords.longitude.toString()
               }
             });
             
-            if (error) throw error;
+            if (error) {
+              console.error("Supabase function error:", error);
+              throw error;
+            }
+
+            console.log("Location data received:", data);
+            
             if (data?.formattedAddress) {
               setCurrentLocation(data.formattedAddress);
             }
@@ -41,10 +51,14 @@ const EventList = ({ events }: EventListProps) => {
             setCurrentLocation("Current Location");
           }
         },
-        () => {
+        (error) => {
+          console.error("Geolocation error:", error);
           setCurrentLocation("Current Location");
         }
       );
+    } else {
+      console.log("Geolocation not supported");
+      setCurrentLocation("Current Location");
     }
   }, []);
 
