@@ -19,6 +19,16 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
     const updateTravelTime = async () => {
       setIsLoading(true);
       try {
+        // Don't make the API call if we don't have valid locations yet
+        if (!fromLocation || !toLocation || 
+            fromLocation === "Loading location..." || 
+            toLocation === "Loading location...") {
+          console.log("Waiting for valid locations...");
+          return;
+        }
+
+        console.log("Fetching travel time for:", { fromLocation, toLocation, mode: showTransit ? 'transit' : 'driving' });
+
         const { data, error } = await supabase.functions.invoke('place-details', {
           body: { 
             origin: fromLocation,

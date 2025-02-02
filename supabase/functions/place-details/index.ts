@@ -23,6 +23,11 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string) 
 
 const getDirections = async (origin: string, destination: string, mode: string, apiKey: string) => {
   console.log('Fetching directions:', { origin, destination, mode })
+  
+  if (!origin || !destination) {
+    throw new Error('Origin and destination are required')
+  }
+
   try {
     const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`
     const directionsRes = await fetch(directionsUrl)
@@ -30,20 +35,22 @@ const getDirections = async (origin: string, destination: string, mode: string, 
 
     if (directionsData.status === 'REQUEST_DENIED') {
       console.error('Directions API error:', directionsData.error_message)
-      return { travelTime: null, durationInMinutes: 0 }
+      throw new Error(directionsData.error_message)
     }
 
-    if (directionsData.routes?.[0]?.legs?.[0]) {
-      const leg = directionsData.routes[0].legs[0]
-      return {
-        travelTime: leg.duration.text,
-        durationInMinutes: Math.ceil(leg.duration.value / 60)
-      }
+    if (!directionsData.routes?.[0]?.legs?.[0]) {
+      throw new Error('No route found')
+    }
+
+    const leg = directionsData.routes[0].legs[0]
+    return {
+      travelTime: leg.duration.text,
+      durationInMinutes: Math.ceil(leg.duration.value / 60)
     }
   } catch (error) {
     console.error('Error fetching directions:', error)
+    throw error
   }
-  return { travelTime: null, durationInMinutes: 0 }
 }
 
 const handlePlaceDetails = async (origin: string, destination: string, mode: string, apiKey: string) => {
@@ -85,6 +92,7 @@ const handlePlaceDetails = async (origin: string, destination: string, mode: str
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -98,13 +106,15 @@ serve(async (req) => {
     const { origin, destination, mode, lat, lng } = await req.json()
     console.log('Received request with params:', { origin, destination, mode, lat, lng })
 
-    if (lat && lng) {
+    // Handle reverse geocoding request
+    if (typeof lat === 'number' && typeof lng === 'number') {
       const result = await handleReverseGeocoding(lat, lng, apiKey)
       return new Response(JSON.stringify(result), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       })
     }
 
+    // Handle directions/place details request
     if (!origin || !destination) {
       throw new Error('Origin and destination are required')
     }
