@@ -6,19 +6,25 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    const { location, mode, origin, lat, lng } = await req.json()
     const apiKey = Deno.env.get('GOOGLE_API_KEY')
-
     if (!apiKey) {
+      console.error('Google API key not configured')
       throw new Error('Google API key not configured')
     }
 
+    const { location, mode, origin, lat, lng } = await req.json()
     console.log('Received request with params:', { location, mode, origin, lat, lng })
+
+    // Validate that we have either location or coordinates
+    if (!location && (!lat || !lng)) {
+      throw new Error('Invalid request parameters: requires either location or lat/lng coordinates')
+    }
 
     // Handle reverse geocoding if lat/lng provided
     if (lat && lng) {
@@ -30,18 +36,21 @@ serve(async (req) => {
       console.log('Geocode response:', geocodeData)
 
       if (geocodeData.status === 'REQUEST_DENIED') {
+        console.error('Google API error:', geocodeData.error_message || 'Request denied')
         throw new Error(`Google API error: ${geocodeData.error_message || 'Request denied'}`)
       }
 
-      if (geocodeData.results && geocodeData.results[0]) {
-        console.log('Successfully got address from coordinates')
-        return new Response(
-          JSON.stringify({
-            formattedAddress: geocodeData.results[0].formatted_address,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+      if (!geocodeData.results || !geocodeData.results[0]) {
+        console.error('No results found for coordinates:', { lat, lng })
+        throw new Error('No results found for these coordinates')
       }
+
+      return new Response(
+        JSON.stringify({
+          formattedAddress: geocodeData.results[0].formatted_address,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Handle place details and directions
@@ -54,10 +63,12 @@ serve(async (req) => {
       console.log('Place API response:', placeData)
 
       if (placeData.status === 'REQUEST_DENIED') {
+        console.error('Google API error:', placeData.error_message || 'Request denied')
         throw new Error(`Google API error: ${placeData.error_message || 'Request denied'}`)
       }
 
       if (!placeData.results || !placeData.results[0]) {
+        console.error('Location not found:', location)
         throw new Error(`Location not found: ${location}`)
       }
 
@@ -74,6 +85,7 @@ serve(async (req) => {
         console.log('Directions API response:', directionsData)
 
         if (directionsData.status === 'REQUEST_DENIED') {
+          console.error('Google API error:', directionsData.error_message || 'Request denied')
           throw new Error(`Google API error: ${directionsData.error_message || 'Request denied'}`)
         }
 
@@ -90,6 +102,7 @@ serve(async (req) => {
       const timezoneData = await timezoneRes.json()
 
       if (timezoneData.status === 'REQUEST_DENIED') {
+        console.error('Google API error:', timezoneData.error_message || 'Request denied')
         throw new Error(`Google API error: ${timezoneData.error_message || 'Request denied'}`)
       }
 
