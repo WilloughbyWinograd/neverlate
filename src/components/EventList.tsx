@@ -31,8 +31,9 @@ const EventList = ({ events }: EventListProps) => {
             
             const { data, error } = await supabase.functions.invoke('place-details', {
               body: { 
-                lat: position.coords.latitude.toString(),
-                lng: position.coords.longitude.toString()
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                mode: 'driving' // Add mode parameter
               }
             });
             
