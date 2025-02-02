@@ -4,7 +4,7 @@ import PlanInput from "./PlanInput";
 import EventList from "./EventList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { parseISO, format, set } from "date-fns";
+import { set } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 const DayPlanner = () => {
@@ -21,65 +21,48 @@ const DayPlanner = () => {
         body: { planText }
       });
 
-      if (parseError) {
-        console.error('Parse error:', parseError);
-        throw new Error('Failed to parse plan text');
-      }
-
+      if (parseError) throw new Error('Failed to parse plan text');
       if (!parsedData?.events || !Array.isArray(parsedData.events)) {
         throw new Error('Invalid response from parse-plan function');
       }
 
-      // For each parsed event, get place details and save to database
       const processedEvents = await Promise.all(parsedData.events.map(async (event: any) => {
         if (!event.location) {
-          console.warn('Event missing location:', event);
           throw new Error(`Missing location for event: ${event.activity}`);
         }
 
-        // Get place details including timezone and travel time
         const { data: placeData, error: placeError } = await supabase.functions.invoke('place-details', {
-          body: { 
-            location: event.location.trim(),
-            mode: 'driving'
-          }
+          body: { location: event.location.trim() }
         });
 
-        if (placeError) {
-          console.error('Place details error:', placeError);
-          throw new Error(`Failed to get details for location: ${event.location}`);
-        }
+        if (placeError) throw new Error(`Failed to get details for location: ${event.location}`);
 
-        // Convert local time to UTC for storage
         const timezone = placeData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const today = new Date();
         
-        // Create full datetime by combining today's date with the event times
+        // Parse time strings and create Date objects
         const [startHours, startMinutes] = event.startTime.split(':');
         const [endHours, endMinutes] = event.endTime.split(':');
         
-        const localStartTime = set(today, { 
-          hours: parseInt(startHours, 10), 
-          minutes: parseInt(startMinutes, 10),
+        // Create local time Date objects
+        const localStartTime = set(today, {
+          hours: parseInt(startHours),
+          minutes: parseInt(startMinutes),
           seconds: 0,
-          milliseconds: 0 
+          milliseconds: 0
         });
         
-        const localEndTime = set(today, { 
-          hours: parseInt(endHours, 10), 
-          minutes: parseInt(endMinutes, 10),
+        const localEndTime = set(today, {
+          hours: parseInt(endHours),
+          minutes: parseInt(endMinutes),
           seconds: 0,
-          milliseconds: 0 
+          milliseconds: 0
         });
 
-        console.log('Local times:', { localStartTime, localEndTime });
-        
+        // Convert to UTC for storage
         const utcStartTime = fromZonedTime(localStartTime, timezone);
         const utcEndTime = fromZonedTime(localEndTime, timezone);
 
-        console.log('UTC times:', { utcStartTime, utcEndTime });
-
-        // Save event to database without user_id
         const { data: savedEvent, error: saveError } = await supabase
           .from('events')
           .insert([{
@@ -92,12 +75,9 @@ const DayPlanner = () => {
           .select()
           .single();
 
-        if (saveError) {
-          console.error('Save error:', saveError);
-          throw new Error('Failed to save event to database');
-        }
+        if (saveError) throw new Error('Failed to save event to database');
 
-        // Convert UTC times back to local for display
+        // Convert UTC times back to local timezone for display
         return {
           ...savedEvent,
           start_time: toZonedTime(savedEvent.start_time, timezone).toISOString(),
@@ -111,10 +91,8 @@ const DayPlanner = () => {
         description: "Your daily plan has been created successfully.",
       });
 
-      // Simple late calculation based on current time vs first event
       if (processedEvents.length > 0) {
-        const firstEventTime = new Date(processedEvents[0].start_time);
-        setIsLate(new Date() > firstEventTime);
+        setIsLate(new Date() > new Date(processedEvents[0].start_time));
       }
     } catch (error) {
       console.error('Error processing plan:', error);

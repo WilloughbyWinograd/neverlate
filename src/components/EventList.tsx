@@ -23,12 +23,17 @@ const EventList = ({ events }: EventListProps) => {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            const response = await fetch(
-              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.coords.latitude},${position.coords.longitude}&key=${process.env.GOOGLE_API_KEY}`
-            );
-            const data = await response.json();
-            if (data.results && data.results[0]) {
-              setCurrentLocation(data.results[0].formatted_address);
+            // Use Supabase edge function to get location details
+            const { data, error } = await supabase.functions.invoke('place-details', {
+              body: { 
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+              }
+            });
+            
+            if (error) throw error;
+            if (data?.formattedAddress) {
+              setCurrentLocation(data.formattedAddress);
             }
           } catch (error) {
             console.error("Error getting location:", error);
