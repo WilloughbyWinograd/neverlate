@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { MapPin, Clock, Car, Train } from "lucide-react";
+import { MapPin, Clock, Car, Train, Navigation } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EventCardProps {
@@ -41,6 +42,12 @@ const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardP
   }, [location, showTransit]);
 
   const fallbackImage = '/placeholder.svg';
+
+  const handleGetDirections = () => {
+    const modeParam = showTransit ? 'transit' : 'driving';
+    const encodedAddress = encodeURIComponent(location);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=${modeParam}`, '_blank');
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4 animate-fade-in">
@@ -83,6 +90,14 @@ const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardP
               />
             </div>
           </div>
+          <Button 
+            onClick={handleGetDirections}
+            className="w-full mt-2"
+            variant="outline"
+          >
+            <Navigation className="w-4 h-4" />
+            Get Directions
+          </Button>
         </div>
       </div>
     </div>
