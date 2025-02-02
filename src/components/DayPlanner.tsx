@@ -4,7 +4,7 @@ import PlanInput from "./PlanInput";
 import EventList from "./EventList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { parseISO, format } from "date-fns";
+import { parseISO, format, set } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 const DayPlanner = () => {
@@ -52,11 +52,32 @@ const DayPlanner = () => {
 
         // Convert local time to UTC for storage
         const timezone = placeData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const localStartTime = parseISO(`${format(new Date(), 'yyyy-MM-dd')}T${event.startTime}`);
-        const localEndTime = parseISO(`${format(new Date(), 'yyyy-MM-dd')}T${event.endTime}`);
+        const today = new Date();
+        
+        // Create full datetime by combining today's date with the event times
+        const [startHours, startMinutes] = event.startTime.split(':');
+        const [endHours, endMinutes] = event.endTime.split(':');
+        
+        const localStartTime = set(today, { 
+          hours: parseInt(startHours, 10), 
+          minutes: parseInt(startMinutes, 10),
+          seconds: 0,
+          milliseconds: 0 
+        });
+        
+        const localEndTime = set(today, { 
+          hours: parseInt(endHours, 10), 
+          minutes: parseInt(endMinutes, 10),
+          seconds: 0,
+          milliseconds: 0 
+        });
+
+        console.log('Local times:', { localStartTime, localEndTime });
         
         const utcStartTime = fromZonedTime(localStartTime, timezone);
         const utcEndTime = fromZonedTime(localEndTime, timezone);
+
+        console.log('UTC times:', { utcStartTime, utcEndTime });
 
         // Save event to database without user_id
         const { data: savedEvent, error: saveError } = await supabase
