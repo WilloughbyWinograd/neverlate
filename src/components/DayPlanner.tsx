@@ -5,7 +5,7 @@ import EventList from "./EventList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { parseISO, format } from "date-fns";
-import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 const DayPlanner = () => {
   const [events, setEvents] = useState([]);
@@ -55,8 +55,8 @@ const DayPlanner = () => {
         const localStartTime = parseISO(`${format(new Date(), 'yyyy-MM-dd')}T${event.startTime}`);
         const localEndTime = parseISO(`${format(new Date(), 'yyyy-MM-dd')}T${event.endTime}`);
         
-        const utcStartTime = zonedTimeToUtc(localStartTime, timezone);
-        const utcEndTime = zonedTimeToUtc(localEndTime, timezone);
+        const utcStartTime = fromZonedTime(localStartTime, timezone);
+        const utcEndTime = fromZonedTime(localEndTime, timezone);
 
         // Save event to database without user_id
         const { data: savedEvent, error: saveError } = await supabase
@@ -79,8 +79,8 @@ const DayPlanner = () => {
         // Convert UTC times back to local for display
         return {
           ...savedEvent,
-          start_time: utcToZonedTime(savedEvent.start_time, timezone).toISOString(),
-          end_time: utcToZonedTime(savedEvent.end_time, timezone).toISOString(),
+          start_time: toZonedTime(savedEvent.start_time, timezone).toISOString(),
+          end_time: toZonedTime(savedEvent.end_time, timezone).toISOString(),
         };
       }));
 
