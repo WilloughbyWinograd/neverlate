@@ -9,7 +9,7 @@ interface EventCardProps {
   imageUrl?: string;
 }
 
-const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardProps) => {
+const EventCard = ({ title, location, startTime, endTime }: EventCardProps) => {
   const formatTime = (timeString: string) => {
     try {
       const date = parseISO(timeString);

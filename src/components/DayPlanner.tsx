@@ -4,7 +4,7 @@ import PlanInput from "./PlanInput";
 import EventList from "./EventList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { set } from "date-fns";
+import { set, addHours } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 const DayPlanner = () => {
@@ -41,23 +41,25 @@ const DayPlanner = () => {
         const today = new Date();
         
         // Parse time strings and create Date objects
-        const [startHours, startMinutes] = event.startTime.split(':');
-        const [endHours, endMinutes] = event.endTime.split(':');
+        const [startHours, startMinutes] = event.startTime.split(':').map(Number);
         
-        // Create local time Date objects
+        // Create local time Date objects with correct hours
         const localStartTime = set(today, {
-          hours: parseInt(startHours),
-          minutes: parseInt(startMinutes),
+          hours: startHours,
+          minutes: startMinutes,
           seconds: 0,
           milliseconds: 0
         });
         
-        const localEndTime = set(today, {
-          hours: parseInt(endHours),
-          minutes: parseInt(endMinutes),
-          seconds: 0,
-          milliseconds: 0
-        });
+        // Set end time to 1 hour after start time if not specified
+        const localEndTime = event.endTime ? 
+          set(today, {
+            hours: parseInt(event.endTime.split(':')[0]),
+            minutes: parseInt(event.endTime.split(':')[1]),
+            seconds: 0,
+            milliseconds: 0
+          }) :
+          addHours(localStartTime, 1);
 
         // Convert to UTC for storage
         const utcStartTime = fromZonedTime(localStartTime, timezone);
