@@ -50,6 +50,42 @@ const getDirections = async (origin: string, destination: string, mode: string, 
   }
 }
 
+const getPlaceDetails = async (location: string, apiKey: string) => {
+  console.log('Getting place details for location:', location)
+  
+  try {
+    const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(location)}&key=${apiKey}`
+    const placeRes = await fetch(placeUrl)
+    const placeData = await placeRes.json()
+
+    if (placeData.status === 'REQUEST_DENIED') {
+      console.error('Places API error:', placeData.error_message)
+      return {
+        formattedAddress: location,
+        photoUrl: null
+      }
+    }
+
+    const place = placeData.results?.[0]
+    if (!place) {
+      return {
+        formattedAddress: location,
+        photoUrl: null
+      }
+    }
+
+    return {
+      formattedAddress: place.formatted_address,
+      photoUrl: place.photos?.[0] ? 
+        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${apiKey}` : 
+        null
+    }
+  } catch (error) {
+    console.error('Error getting place details:', error)
+    throw error
+  }
+}
+
 const handlePlaceDetails = async (origin: string, destination: string, mode: string, apiKey: string) => {
   console.log('Handling place details:', { origin, destination, mode })
   
@@ -57,33 +93,10 @@ const handlePlaceDetails = async (origin: string, destination: string, mode: str
   const travelInfo = await getDirections(origin, destination, mode, apiKey)
   
   // Get place details for the destination
-  const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(destination)}&key=${apiKey}`
-  const placeRes = await fetch(placeUrl)
-  const placeData = await placeRes.json()
-
-  if (placeData.status === 'REQUEST_DENIED') {
-    console.error('Places API error:', placeData.error_message)
-    return {
-      formattedAddress: destination,
-      photoUrl: null,
-      ...travelInfo
-    }
-  }
-
-  const place = placeData.results?.[0]
-  if (!place) {
-    return {
-      formattedAddress: destination,
-      photoUrl: null,
-      ...travelInfo
-    }
-  }
-
+  const placeDetails = await getPlaceDetails(destination, apiKey)
+  
   return {
-    formattedAddress: place.formatted_address,
-    photoUrl: place.photos?.[0] ? 
-      `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${place.photos[0].photo_reference}&key=${apiKey}` : 
-      null,
+    ...placeDetails,
     ...travelInfo
   }
 }
@@ -103,11 +116,19 @@ serve(async (req) => {
     const requestData = await req.json()
     console.log('Received request with data:', requestData)
 
-    const { origin, destination, mode, lat, lng } = requestData
+    const { origin, destination, mode, lat, lng, location } = requestData
 
     // Handle reverse geocoding request
     if (typeof lat === 'number' && typeof lng === 'number') {
       const result = await handleReverseGeocoding(lat, lng, apiKey)
+      return new Response(JSON.stringify(result), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
+    }
+
+    // Handle single location request
+    if (location) {
+      const result = await getPlaceDetails(location, apiKey)
       return new Response(JSON.stringify(result), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       })
@@ -121,11 +142,11 @@ serve(async (req) => {
       })
     }
 
-    // If we have neither coordinates nor valid origin/destination, return an error
+    // If we have neither coordinates nor valid origin/destination nor location, return an error
     return new Response(
       JSON.stringify({ 
         error: 'Failed to process request',
-        details: 'Either coordinates (lat/lng) or both origin and destination are required'
+        details: 'Either coordinates (lat/lng), a single location, or both origin and destination are required'
       }),
       { 
         status: 400,
