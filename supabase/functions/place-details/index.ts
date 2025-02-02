@@ -28,6 +28,11 @@ const getDirections = async (origin: string, destination: string, mode: string, 
   console.log('Getting directions:', { origin, destination, mode })
   
   try {
+    // Validate addresses before making the API call
+    if (!origin.trim() || !destination.trim()) {
+      throw new Error('Invalid origin or destination address')
+    }
+
     const encodedOrigin = encodeURIComponent(origin)
     const encodedDestination = encodeURIComponent(destination)
     const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodedOrigin}&destination=${encodedDestination}&mode=${mode}&key=${apiKey}`
@@ -36,7 +41,16 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
-    console.log('Google Directions API response status:', directionsData.status)
+    console.log('Google Directions API response:', {
+      status: directionsData.status,
+      error_message: directionsData.error_message || 'No error message',
+      origin,
+      destination
+    })
+
+    if (directionsData.status === 'NOT_FOUND') {
+      throw new Error('Could not find a route between these locations. Please check the addresses and try again.')
+    }
 
     if (directionsData.status !== 'OK') {
       throw new Error(`Directions API error: ${directionsData.status}${directionsData.error_message ? ` - ${directionsData.error_message}` : ''}`)
@@ -46,7 +60,7 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     const leg = route?.legs?.[0]
     
     if (!leg) {
-      throw new Error('No route found in response')
+      throw new Error('No route found between these locations')
     }
 
     return {
