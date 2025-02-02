@@ -35,8 +35,8 @@ serve(async (req) => {
 
     console.log('Fetching place details for location:', location)
 
-    // First get place ID
-    const placeSearchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(location.trim())}&inputtype=textquery&fields=place_id,photos&key=${GOOGLE_API_KEY}`
+    // First get place ID and coordinates
+    const placeSearchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(location.trim())}&inputtype=textquery&fields=place_id,photos,geometry&key=${GOOGLE_API_KEY}`
     
     const placeResponse = await fetch(placeSearchUrl)
     if (!placeResponse.ok) {
@@ -66,29 +66,40 @@ serve(async (req) => {
       const photoReference = placeData.candidates[0].photos[0].photo_reference
       photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${GOOGLE_API_KEY}`
     } else {
-      // Use a default placeholder image if no photo is available
-      photoUrl = 'https://via.placeholder.com/400x300?text=No+Image+Available'
+      photoUrl = '/placeholder.svg'
     }
 
-    // Get place details including coordinates
-    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry&key=${GOOGLE_API_KEY}`
-    const detailsResponse = await fetch(detailsUrl)
-    const detailsData = await detailsResponse.json()
+    // Get coordinates for Distance Matrix API
+    const coordinates = placeData.candidates[0].geometry.location
 
-    console.log('Place details response:', detailsData)
+    // Get current user location (for demo, using a fixed point in the city)
+    const origin = "37.7749,-122.4194" // San Francisco coordinates
+    const destination = `${coordinates.lat},${coordinates.lng}`
 
-    if (!detailsData.result || !detailsData.result.geometry) {
-      throw new Error('Failed to get location coordinates')
+    // Calculate travel time using Distance Matrix API
+    const distanceMatrixUrl = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&mode=${mode}&key=${GOOGLE_API_KEY}`
+    
+    const distanceResponse = await fetch(distanceMatrixUrl)
+    if (!distanceResponse.ok) {
+      console.error('Distance Matrix API error:', await distanceResponse.text())
+      throw new Error('Failed to calculate travel time')
     }
 
-    // Mock travel time for now (you can implement actual travel time calculation later)
-    const travelTime = '30 mins'
+    const distanceData = await distanceResponse.json()
+    console.log('Distance Matrix response:', distanceData)
+
+    let travelTime = 'Unable to calculate'
+    if (distanceData.rows && 
+        distanceData.rows[0].elements && 
+        distanceData.rows[0].elements[0].duration) {
+      travelTime = distanceData.rows[0].elements[0].duration.text
+    }
 
     return new Response(
       JSON.stringify({
         placeId,
         photoUrl,
-        coordinates: detailsData.result.geometry.location,
+        coordinates,
         travelTime
       }),
       {
