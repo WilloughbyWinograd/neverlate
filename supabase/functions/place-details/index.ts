@@ -26,32 +26,30 @@ serve(async (req) => {
       throw new Error('Invalid request parameters: requires either location or lat/lng coordinates')
     }
 
-    // Test the API key first with a simple request
+    // Test the Geocoding API first (most basic API)
+    console.log('Testing API access with Geocoding API...')
     const testUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${apiKey}`
     const testRes = await fetch(testUrl)
     const testData = await testRes.json()
 
     if (testData.status === 'REQUEST_DENIED') {
-      console.error('Google API authorization error:', testData.error_message)
-      throw new Error(`Google API authorization error: ${testData.error_message}`)
+      console.error('Initial API test failed:', testData.error_message)
+      throw new Error('Google API authorization error: Please enable the Geocoding API in your Google Cloud Console')
     }
 
     // Handle reverse geocoding if lat/lng provided
     if (lat && lng) {
-      console.log('Reverse geocoding for coordinates:', { lat, lng })
+      console.log('Performing reverse geocoding for coordinates:', { lat, lng })
       const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
       const geocodeRes = await fetch(geocodeUrl)
       const geocodeData = await geocodeRes.json()
 
-      console.log('Geocode response:', geocodeData)
-
       if (geocodeData.status === 'REQUEST_DENIED') {
-        console.error('Google API error:', geocodeData.error_message)
-        throw new Error(`Google API error: ${geocodeData.error_message}`)
+        console.error('Geocoding API error:', geocodeData.error_message)
+        throw new Error('Geocoding API error: Please ensure the Geocoding API is enabled')
       }
 
       if (!geocodeData.results || !geocodeData.results[0]) {
-        console.error('No results found for coordinates:', { lat, lng })
         throw new Error('No results found for these coordinates')
       }
 
@@ -65,20 +63,17 @@ serve(async (req) => {
 
     // Handle place details and directions
     if (location) {
-      console.log('Getting place details for location:', location)
+      console.log('Fetching place details for location:', location)
       const placeUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(location)}&key=${apiKey}`
       const placeRes = await fetch(placeUrl)
       const placeData = await placeRes.json()
 
-      console.log('Place API response:', placeData)
-
       if (placeData.status === 'REQUEST_DENIED') {
-        console.error('Google API error:', placeData.error_message)
-        throw new Error(`Google API error: ${placeData.error_message}`)
+        console.error('Places API error:', placeData.error_message)
+        throw new Error('Places API error: Please ensure the Places API is enabled')
       }
 
       if (!placeData.results || !placeData.results[0]) {
-        console.error('Location not found:', location)
         throw new Error(`Location not found: ${location}`)
       }
 
@@ -92,11 +87,9 @@ serve(async (req) => {
         const directionsRes = await fetch(directionsUrl)
         const directionsData = await directionsRes.json()
 
-        console.log('Directions API response:', directionsData)
-
         if (directionsData.status === 'REQUEST_DENIED') {
-          console.error('Google API error:', directionsData.error_message)
-          throw new Error(`Google API error: ${directionsData.error_message}`)
+          console.error('Directions API error:', directionsData.error_message)
+          throw new Error('Directions API error: Please ensure the Directions API is enabled')
         }
 
         if (directionsData.routes && directionsData.routes[0]) {
@@ -120,15 +113,16 @@ serve(async (req) => {
       )
     }
 
-    throw new Error('Invalid request parameters: requires either location or lat/lng coordinates')
+    throw new Error('Invalid request parameters')
   } catch (error) {
     console.error('Error in place-details function:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: error.message.includes('Google API') ? 
-          'Please ensure the Google API key has access to Places API, Geocoding API, and Directions API' : 
-          'Please provide either location or lat/lng coordinates'
+        details: 'Please enable the following APIs in your Google Cloud Console:\n' +
+                '1. Geocoding API\n' +
+                '2. Places API\n' +
+                '3. Directions API'
       }),
       { 
         status: 400,
