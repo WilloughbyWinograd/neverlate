@@ -24,12 +24,13 @@ const handleReverseGeocoding = async (lat: number, lng: number, apiKey: string) 
 const getDirections = async (origin: string, destination: string, mode: string, apiKey: string) => {
   console.log('Fetching directions:', { origin, destination, mode })
   
-  if (!origin || !destination) {
-    throw new Error('Origin and destination are required')
+  // Validate input parameters
+  if (!origin?.trim() || !destination?.trim()) {
+    throw new Error('Origin and destination are required and must not be empty')
   }
 
   try {
-    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`
+    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin.trim())}&destination=${encodeURIComponent(destination.trim())}&mode=${mode}&key=${apiKey}`
     const directionsRes = await fetch(directionsUrl)
     const directionsData = await directionsRes.json()
 
@@ -39,7 +40,8 @@ const getDirections = async (origin: string, destination: string, mode: string, 
     }
 
     if (!directionsData.routes?.[0]?.legs?.[0]) {
-      throw new Error('No route found')
+      console.error('No route found for:', { origin, destination, mode })
+      throw new Error('No route found between these locations')
     }
 
     const leg = directionsData.routes[0].legs[0]
@@ -115,8 +117,17 @@ serve(async (req) => {
     }
 
     // Handle directions/place details request
-    if (!origin || !destination) {
-      throw new Error('Origin and destination are required')
+    if (!origin?.trim() || !destination?.trim()) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to process request',
+          details: 'Origin and destination are required and must not be empty'
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
     const result = await handlePlaceDetails(origin, destination, mode || 'driving', apiKey)

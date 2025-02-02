@@ -17,22 +17,29 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
 
   useEffect(() => {
     const updateTravelTime = async () => {
+      // Reset state at the start of each update
       setIsLoading(true);
+      setTravelTime(null);
+
       try {
-        // Don't make the API call if we don't have valid locations yet
-        if (!fromLocation || !toLocation || 
+        // Validate locations before making the API call
+        if (!fromLocation?.trim() || !toLocation?.trim() || 
             fromLocation === "Loading location..." || 
             toLocation === "Loading location...") {
-          console.log("Waiting for valid locations...");
+          console.log("Invalid or loading locations, skipping API call");
           return;
         }
 
-        console.log("Fetching travel time for:", { fromLocation, toLocation, mode: showTransit ? 'transit' : 'driving' });
+        console.log("Fetching travel time for:", {
+          fromLocation: fromLocation.trim(),
+          toLocation: toLocation.trim(),
+          mode: showTransit ? 'transit' : 'driving'
+        });
 
         const { data, error } = await supabase.functions.invoke('place-details', {
           body: { 
-            origin: fromLocation,
-            destination: toLocation,
+            origin: fromLocation.trim(),
+            destination: toLocation.trim(),
             mode: showTransit ? 'transit' : 'driving'
           }
         });
@@ -60,9 +67,11 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
   }, [fromLocation, toLocation, showTransit]);
 
   const handleGetDirections = () => {
+    if (!fromLocation?.trim() || !toLocation?.trim()) return;
+    
     const modeParam = showTransit ? 'transit' : 'driving';
-    const encodedDestination = encodeURIComponent(toLocation);
-    const encodedOrigin = encodeURIComponent(fromLocation);
+    const encodedDestination = encodeURIComponent(toLocation.trim());
+    const encodedOrigin = encodeURIComponent(fromLocation.trim());
     window.open(
       `https://www.google.com/maps/dir/?api=1&origin=${encodedOrigin}&destination=${encodedDestination}&travelmode=${modeParam}`,
       '_blank'
