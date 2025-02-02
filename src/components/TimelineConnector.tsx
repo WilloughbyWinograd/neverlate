@@ -1,4 +1,4 @@
-import { CarFront, Train, Navigation } from "lucide-react";
+import { MapPin, Train, Navigation } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
@@ -12,8 +12,8 @@ interface TimelineConnectorProps {
 
 const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: TimelineConnectorProps) => {
   const [showTransit, setShowTransit] = useState(false);
-  const [travelTime, setTravelTime] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [travelTime, setTravelTime] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const updateTravelTime = async () => {
@@ -28,7 +28,7 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
         });
 
         if (error) throw error;
-        setTravelTime(data?.travelTime || 'Calculating...');
+        setTravelTime(data?.travelTime || 'Unable to calculate');
       } catch (error) {
         console.error('Error fetching travel time:', error);
         setTravelTime('Unable to calculate travel time');
@@ -56,12 +56,14 @@ const TimelineConnector = ({ fromLocation, toLocation, isFirst = false }: Timeli
       <div className="w-full bg-white border border-planner-300 rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-2 min-w-0">
-            {showTransit ? <Train className="w-4 h-4 flex-shrink-0" /> : <CarFront className="w-4 h-4 flex-shrink-0" />}
+            {showTransit ? <Train className="w-4 h-4 flex-shrink-0" /> : <MapPin className="w-4 h-4 flex-shrink-0" />}
             <span className="font-medium whitespace-nowrap">
               {isFirst ? 'From Current Location' : 'Next Stop'}
             </span>
             <span className="text-gray-400 mx-2">•</span>
-            <span className="truncate">{isLoading ? 'Calculating...' : travelTime}</span>
+            <span className="truncate">
+              {isLoading ? 'Calculating...' : travelTime}
+            </span>
           </div>
           <div className="flex items-center gap-4 flex-shrink-0">
             <div className="flex items-center gap-2">
