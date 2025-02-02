@@ -40,13 +40,19 @@ const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardP
     updateTravelTime();
   }, [location, showTransit]);
 
+  const fallbackImage = '/placeholder.svg';
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden mb-4 animate-fade-in">
-      <div className="relative h-32">
+      <div className="relative h-48">
         <img
-          src={imageUrl}
+          src={imageUrl || fallbackImage}
           alt={location}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = fallbackImage;
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
       </div>
@@ -59,7 +65,9 @@ const EventCard = ({ title, location, startTime, endTime, imageUrl }: EventCardP
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Clock className="w-4 h-4" />
-            <span>{new Date(startTime).toLocaleTimeString()} - {new Date(endTime).toLocaleTimeString()}</span>
+            <span>
+              {new Date(startTime).toLocaleTimeString()} - {new Date(endTime).toLocaleTimeString()}
+            </span>
           </div>
           <div className="flex items-center justify-between mt-3 pt-3 border-t">
             <div className="flex items-center gap-2 text-sm">

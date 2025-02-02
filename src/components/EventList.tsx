@@ -4,9 +4,9 @@ interface Event {
   id: string;
   title: string;
   location: string;
-  startTime: string;
-  endTime: string;
-  imageUrl: string;
+  start_time: string;
+  end_time: string;
+  image_url: string;
 }
 
 interface EventListProps {
@@ -21,9 +21,9 @@ const EventList = ({ events }: EventListProps) => {
           key={event.id}
           title={event.title}
           location={event.location}
-          startTime={event.startTime}
-          endTime={event.endTime}
-          imageUrl={event.imageUrl}
+          startTime={event.start_time}
+          endTime={event.end_time}
+          imageUrl={event.image_url}
         />
       ))}
     </div>
