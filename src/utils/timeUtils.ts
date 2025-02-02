@@ -21,7 +21,7 @@ export const parseTimeString = (timeString: string): Date => {
     console.log('Not an ISO date, trying human format:', timeString);
   }
 
-  // If not ISO, try human-readable format
+  // If not ISO, try human-readable format (e.g., "11am", "2pm", "7pm")
   const cleanTimeString = timeString.toLowerCase().trim();
   const timeMatch = cleanTimeString.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
   
@@ -42,17 +42,22 @@ export const parseTimeString = (timeString: string): Date => {
     }
   }
 
+  // Validate time values
   if (parsedHours < 0 || parsedHours > 23 || parsedMinutes < 0 || parsedMinutes > 59) {
     throw new Error(`Invalid time values: hours=${parsedHours}, minutes=${parsedMinutes}`);
   }
 
-  // Always set to today's date
-  return set(new Date(), {
-    hours: parsedHours,
-    minutes: parsedMinutes,
-    seconds: 0,
-    milliseconds: 0
-  });
+  // Set to today's date with the parsed time
+  const today = new Date();
+  return new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    parsedHours,
+    parsedMinutes,
+    0,
+    0
+  );
 };
 
 export const formatEventTime = (date: Date, timezone: string): string => {
@@ -94,8 +99,10 @@ export const convertToTimezone = (date: Date, timezone: string, toUTC: boolean =
   }
 
   try {
-    const dateInZone = formatInTimeZone(date, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX");
-    return new Date(dateInZone);
+    // Format the date in the target timezone, which gives us the correct local time
+    const dateString = formatInTimeZone(date, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+    // Parse the formatted string back to a Date object
+    return new Date(dateString);
   } catch (error) {
     console.error('Error converting timezone:', error);
     return date;
