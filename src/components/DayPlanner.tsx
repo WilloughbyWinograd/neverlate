@@ -20,6 +20,18 @@ const DayPlanner = () => {
       });
 
       if (parseError) throw new Error('Failed to parse plan text');
+      
+      // Handle the case where no valid schedule was found
+      if (parsedData.error === 'No schedule discernible') {
+        toast({
+          title: "Invalid plan",
+          description: "No valid schedule could be created from your input. Please provide location-based activities.",
+          variant: "destructive",
+        });
+        setEvents([]);
+        return;
+      }
+
       if (!parsedData?.events || !Array.isArray(parsedData.events)) {
         throw new Error('Invalid response from parse-plan function');
       }

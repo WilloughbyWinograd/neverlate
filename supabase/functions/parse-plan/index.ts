@@ -37,7 +37,55 @@ serve(async (req) => {
       throw new Error('Plan text is required')
     }
 
-    console.log('Sending request to Claude API with plan:', planText)
+    console.log('Sending validation request to Claude API with plan:', planText)
+
+    // First, validate if the input contains valid location-based activities
+    try {
+      const validationResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+          'x-api-key': CLAUDE_API_KEY,
+        },
+        body: JSON.stringify({
+          model: 'claude-3-opus-20240229',
+          max_tokens: 1024,
+          messages: [{
+            role: 'user',
+            content: `Analyze if this text contains valid location-based activities that could be scheduled:
+
+            "${planText}"
+
+            Respond with ONLY "true" if it contains valid location-based activities (e.g., "meeting at coffee shop", "lunch at restaurant", "visit museum"), 
+            or "false" if it's gibberish or doesn't contain any location-based activities.
+            
+            Response must be exactly "true" or "false", nothing else.`
+          }]
+        })
+      });
+
+      if (!validationResponse.ok) {
+        throw new Error('Failed to validate plan text')
+      }
+
+      const validationData = await validationResponse.json()
+      const isValid = validationData.content[0].text.trim().toLowerCase() === 'true'
+
+      if (!isValid) {
+        console.log('Input contains no valid schedule:', planText)
+        return new Response(
+          JSON.stringify({ error: 'No schedule discernible' }), 
+          { headers: corsHeaders }
+        )
+      }
+    } catch (validationError) {
+      console.error('Validation error:', validationError)
+      throw new Error('Failed to validate plan text')
+    }
+
+    // If validation passes, proceed with parsing the schedule
+    console.log('Input validated, proceeding to parse schedule')
 
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
