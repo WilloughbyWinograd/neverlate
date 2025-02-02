@@ -6,6 +6,7 @@ const CLAUDE_API_KEY = Deno.env.get('Claude_API_Key')
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json'
 }
 
 serve(async (req) => {
@@ -74,8 +75,14 @@ serve(async (req) => {
       throw new Error('Failed to extract events from Claude response')
     }
 
-    const events = JSON.parse(jsonMatch[0])
-    console.log('Parsed events:', events)
+    let events;
+    try {
+      events = JSON.parse(jsonMatch[0])
+      console.log('Parsed events:', events)
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      throw new Error('Failed to parse events JSON')
+    }
 
     if (!Array.isArray(events)) {
       throw new Error('Invalid events format - expected array')
@@ -89,10 +96,13 @@ serve(async (req) => {
       }
     })
 
-    return new Response(JSON.stringify({ events }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
-    })
+    return new Response(
+      JSON.stringify({ events }), 
+      { 
+        headers: corsHeaders,
+        status: 200 
+      }
+    )
 
   } catch (error) {
     console.error('Error in parse-plan function:', error)
@@ -103,7 +113,7 @@ serve(async (req) => {
       }),
       {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: corsHeaders
       }
     )
   }
