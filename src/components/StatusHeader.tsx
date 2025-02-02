@@ -41,15 +41,17 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
             
             if (error) throw error;
             
-            if (data?.formattedAddress && data.formattedAddress !== "Current Location") {
-              setFormattedLocation(data.formattedAddress);
+            if (data?.formattedAddress) {
+              // Extract just the street address part if possible
+              const addressParts = data.formattedAddress.split(',');
+              const streetAddress = addressParts[0] || data.formattedAddress;
+              setFormattedLocation(streetAddress);
             } else {
-              // Fallback to coordinates if no address is returned
-              setFormattedLocation(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
+              setFormattedLocation("Address unavailable");
             }
           } catch (error) {
             console.error("Error getting location:", error);
-            setFormattedLocation(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
+            setFormattedLocation("Address unavailable");
           }
         },
         (error) => {
