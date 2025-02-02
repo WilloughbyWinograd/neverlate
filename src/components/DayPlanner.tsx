@@ -95,7 +95,7 @@ const DayPlanner = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-planner-100 to-white p-4 sm:p-6">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-center">Daily Plan</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">NeverLate</h1>
         <StatusHeader 
           isLate={isLate} 
           events={events} 
