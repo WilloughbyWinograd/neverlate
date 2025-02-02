@@ -16,6 +16,7 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLate, setIsLate] = useState(initialIsLate);
   const [transitTimes, setTransitTimes] = useState<{[key: string]: number}>({});
+  const [formattedLocation, setFormattedLocation] = useState(currentLocation);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -26,11 +27,40 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
   }, []);
 
   useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { data } = await supabase.functions.invoke('place-details', {
+              body: { 
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                mode: 'driving'
+              }
+            });
+            
+            if (data?.formattedAddress) {
+              setFormattedLocation(data.formattedAddress);
+            }
+          } catch (error) {
+            console.error("Error getting location:", error);
+            setFormattedLocation("Unable to get location");
+          }
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          setFormattedLocation("Location unavailable");
+        }
+      );
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchTransitTimes = async () => {
       if (!events.length) return;
       
       const times: {[key: string]: number} = {};
-      let prevLocation = currentLocation;
+      let prevLocation = formattedLocation;
 
       for (const event of events) {
         try {
@@ -56,7 +86,7 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
     };
 
     fetchTransitTimes();
-  }, [events, currentLocation]);
+  }, [events, formattedLocation]);
 
   useEffect(() => {
     if (events && events.length > 0) {
@@ -70,7 +100,7 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
   }, [currentTime, events, transitTimes]);
 
   return (
-    <div className="p-4 max-w-3xl mx-auto mb-6 rounded-lg animate-fade-in" 
+    <div className="p-4 w-full max-w-3xl mx-auto mb-6 rounded-lg animate-fade-in" 
          style={{ backgroundColor: isLate ? "rgb(var(--destructive) / 0.1)" : "rgb(var(--planner) / 0.2)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -83,7 +113,7 @@ const StatusHeader = ({ isLate: initialIsLate, events = [], currentLocation }: S
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5" />
             <span className="font-medium text-sm">
-              {currentLocation}
+              {formattedLocation}
             </span>
           </div>
         </div>
